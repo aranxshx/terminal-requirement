@@ -1,0 +1,6 @@
+room,appliance,wattage,usage_level,hours_per_day,kwh,monthly_cost
+Kitchen,Rice Cooker,400,Moderate,4,48.0,576.0
+Living Room,Aircon,1500,Heavy,8,360.0,4320.0
+Bathroom,Water Heater,2000,Moderate,4,240.0,2880.0
+Bedroom,Lamp,40,Eco,1,1.2,14.4
+Dining Area,Fan,60,Heavy,8,14.4,172.8
