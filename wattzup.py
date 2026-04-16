@@ -216,12 +216,26 @@ def check_budget(total_cost: float, budget: float | None) -> str:
 
 
 def display_dashboard(records: list[dict], budget: float | None) -> None:
+    """Shows the main dashboard with large ASCII art and consistent borders."""
     total_cost = get_total_cost(records)
 
-    print("\n" + "=" * 41)
-    print(f"{'WATTZUP - DASHBOARD':^41}")
-    print("=" * 41)
-
+    print("\n" + "============================================================================")
+    print(r"                                                                          ")
+    print(r"  /$$      /$$  /$$$$$$  /$$$$$$$$ /$$$$$$$$ /$$$$$$$$                    ")
+    print(r" | $$  /$ | $$ /$$__  $$|__  $$__/|__  $$__/|_____ $$                     ")
+    print(r" | $$ /$$$| $$| $$  \ $$   | $$      | $$        /$$/  /$$   /$$  /$$$$$$ ")
+    print(r" | $$/$$ $$ $$| $$$$$$$$   | $$      | $$       /$$/  | $$  | $$ /$$__  $$")
+    print(r" | $$$$_  $$$$| $$__  $$   | $$      | $$      /$$/   | $$  | $$| $$  \ $$")
+    print(r" | $$$/ \  $$$| $$  | $$   | $$      | $$     /$$/    | $$  | $$| $$  | $$")
+    print(r" | $$/   \  $$| $$  | $$   | $$      | $$    /$$$$$$$$|  $$$$$$/| $$$$$$$/")
+    print(r" |__/     \__/|__/  |__/   |__/      |__/   |________/ \______/ | $$____/ ")
+    print(r"                                                                | $$      ")
+    print(r"                                                                | $$      ")
+    print(r"                                                                |__/      ")
+    
+    # Border Middle
+    print("============================================================================")
+    
     if not records:
         print("  Estimated Monthly Cost : P0.00")
         print("  Budget Status          : NO RECORDS YET")
@@ -241,8 +255,9 @@ def display_dashboard(records: list[dict], budget: float | None) -> None:
     print("  [5] Save Records")
     print("  [6] Load Records")
     print("  [0] Exit")
-    print("=" * 41)
-
+    
+    # Border Bottom
+    print("============================================================================")
 
 def display_room_menu(rooms: list[str]) -> str | None:
     while True:
