@@ -124,7 +124,7 @@ def _parse_record_line(line: str) -> Optional[dict]:
     }
 
 
-def save_records(records: list[dict], filename: str = "household_records.txt") -> None:
+def save_records(records: list[dict], filename: str = "data/household_records.txt") -> None:
     """Save a list of record dictionaries to a CSV-formatted text file."""
     fieldnames = [
         "room",
@@ -136,6 +136,10 @@ def save_records(records: list[dict], filename: str = "household_records.txt") -
         "monthly_cost",
     ]
 
+    folder = os.path.dirname(filename)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+
     with open(filename, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
@@ -143,7 +147,7 @@ def save_records(records: list[dict], filename: str = "household_records.txt") -
             writer.writerow({key: record.get(key) for key in fieldnames})
 
 
-def load_records(filename: str = "household_records.txt") -> list[dict]:
+def load_records(filename: str = "data/household_records.txt") -> list[dict]:
     """Load record dictionaries from file, skipping invalid lines silently."""
     if not os.path.exists(filename):
         return []

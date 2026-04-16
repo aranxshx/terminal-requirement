@@ -1,0 +1,3 @@
+room,appliance,wattage,usage_level,hours_per_day,kwh,monthly_cost
+Bathroom,Lights,15,Heavy,8,3.6,43.2
+Kitchen,Rice Cooker,400,Eco,1,12.0,144.0
