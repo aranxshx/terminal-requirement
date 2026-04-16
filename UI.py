@@ -3,9 +3,10 @@ WattzUp: Electricity Consumption Monitoring System
 Member 3: User Interface (Menus, Display & Navigation)
 """
 
+
 def display_dashboard(records, budget):
     """Shows the main dashboard header, costs, and menu."""
-    total_cost = sum(record.get('MonthlyCost', 0) for record in records)
+    total_cost = sum(record.get("monthly_cost", record.get("MonthlyCost", 0)) for record in records)
     
     print("\n" + "=" * 41)
     print(f"{'WATTZUP — DASHBOARD':^41}")
@@ -16,8 +17,8 @@ def display_dashboard(records, budget):
         print("  Budget Status          : NO RECORDS YET")
     else:
         print(f"  Estimated Monthly Cost : ₱{total_cost:,.2f}")
-        
-        if budget == 0:
+
+        if budget is None:
             print("  Budget Status          : NOT SET")
         elif total_cost > budget:
             print("  Budget Status          : OVER BUDGET ✗")
@@ -61,7 +62,13 @@ def display_appliance_menu(appliances):
     while True:
         print("\nSELECT APPLIANCE:")
         for i, app in enumerate(appliances, 1):
-            print(f"  [{i}] {app['name']} ({app['wattage']}W)")
+            if isinstance(app, dict):
+                name = app.get("name", "Unknown")
+                wattage = app.get("wattage")
+                label = f"{name} ({wattage}W)" if wattage is not None else name
+            else:
+                label = str(app)
+            print(f"  [{i}] {label}")
         print("  [0] Back")
         
         choice = input("\nEnter choice: ")
@@ -71,7 +78,10 @@ def display_appliance_menu(appliances):
         try:
             idx = int(choice) - 1
             if 0 <= idx < len(appliances):
-                return appliances[idx]
+                selected = appliances[idx]
+                if isinstance(selected, dict):
+                    return selected.get("name")
+                return selected
             else:
                 print("Invalid choice.")
         except ValueError:
@@ -117,8 +127,11 @@ def display_appliance_ranking(ranked_appliances):
         print("No data available.")
     else:
         for i, app in enumerate(ranked_appliances, 1):
-            name_str = f"{app['Appliance']} ({app['Room']})"
-            print(f"  {i}. {name_str:<22} : ₱{app['MonthlyCost']:,.2f}")
+            appliance = app.get("appliance", app.get("Appliance", "Unknown"))
+            room = app.get("room", app.get("Room", "Unknown"))
+            monthly_cost = app.get("monthly_cost", app.get("MonthlyCost", 0.0))
+            name_str = f"{appliance} ({room})"
+            print(f"  {i}. {name_str:<22} : ₱{monthly_cost:,.2f}")
     print("-" * 40)
     input("\nPress Enter to return to Dashboard...")
 

@@ -1,0 +1,54 @@
+Project Title
+WattzUp: Electricity Consumption Monitoring System
+
+Group Members
+1. [Member 1 Name]
+2. [Member 2 Name]
+3. [Member 3 Name]
+4. [Member 4 Name]
+
+Brief Description
+WattzUp is a Python terminal application that helps users monitor household appliance electricity use. It lets users add appliance usage records by room, compute monthly electricity consumption and cost, rank high-consuming rooms and appliances, set a budget, and save or load records from a file.
+
+Objectives
+1. Build a practical terminal app for electricity monitoring.
+2. Apply Python fundamentals including functions, loops, and control flow.
+3. Use file handling to persist records between runs.
+4. Implement robust input validation and error handling.
+
+Features and Functionalities
+1. Dashboard showing estimated monthly cost and budget status.
+2. Room and appliance selection flow for adding records.
+3. Usage-level selection (Heavy, Moderate, Eco) mapped to hours/day.
+4. Automatic computation of kWh and monthly cost.
+5. Appliance and room ranking views by monthly cost.
+6. Budget setting and status checking (under/over budget).
+7. Save and load records using household_records.txt.
+8. Startup load prompt and autosave prompt on exit.
+
+Programming Concepts Applied
+1. Data Types: int for wattage/hours, float for kWh/cost/budget, str for names and menu choices, list/dict for records and appliance library.
+2. Operators: arithmetic operators in kWh/cost formulas and comparison operators for budget checks.
+3. Control Structures: if/elif/else for menu routing and validations.
+4. Loops: while loops for menu/input prompts and for loops for iteration.
+5. Functions: modularized data layer, computation engine, UI display, and main loop.
+6. List Handling: record lists and ranking outputs.
+7. File Handling: CSV-style read/write in household_records.txt.
+8. Error Handling: try/except for invalid numeric input and file-related issues.
+
+File Handling Explanation
+The program writes and reads records from household_records.txt. Save operation writes a CSV header and one line per record. Load operation reads each line and validates it before converting to a record dictionary. Corrupted, incomplete, or invalid lines are skipped so the program does not crash.
+
+Error Handling Explanation
+1. Non-numeric and out-of-range menu choices are rejected and re-prompted.
+2. Invalid budget input is caught and re-prompted.
+3. Missing records file is handled by starting with an empty list.
+4. Malformed records are skipped during loading.
+5. Empty-record states are handled with user-friendly messages.
+6. Save/load file errors are caught and printed without terminating the app.
+
+How to Run
+1. Open terminal in the project folder.
+2. Run: python wattzup.py
+3. Use menu options to manage records, rankings, budget, save, and load.
+4. On exit, choose whether to autosave records.
