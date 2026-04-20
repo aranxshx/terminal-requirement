@@ -47,3 +47,23 @@ USAGE_LEVELS: dict[str, int] = {
 DEFAULT_RATE_PER_KWH: float = 12.0
 DATA_DIRECTORY: str = "data"
 USER_RECORD_SUFFIX: str = "_household_records.csv"
+
+# UI design tokens (customtkinter)
+BG_BASE: str = "#1a1a2e"
+BG_SURFACE: str = "#16213e"
+BG_ELEVATED: str = "#0f3460"
+
+ACCENT_PRIMARY: str = "#e94560"
+ACCENT_HOVER: str = "#c73652"
+ACCENT_MUTED: str = "#533483"
+
+TEXT_PRIMARY: str = "#eaeaea"
+TEXT_SECONDARY: str = "#a0a0b0"
+TEXT_DISABLED: str = "#555566"
+
+STATUS_UNDER: str = "#4caf82"
+STATUS_OVER: str = "#e94560"
+STATUS_NOTSET: str = "#a0a0b0"
+
+BORDER_DEFAULT: str = "#2a2a4a"
+BORDER_FOCUS: str = "#e94560"
