@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from collections.abc import Callable
@@ -15,6 +15,7 @@ from util.config import (
     BG_ELEVATED,
     BG_SURFACE,
     BORDER_DEFAULT,
+    BORDER_FOCUS,
     STATUS_NOTSET,
     STATUS_OVER,
     STATUS_UNDER,
@@ -27,9 +28,21 @@ from util.config import (
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
-FONT_HEADING = ("Segoe UI", 16, "bold")
-FONT_BODY = ("Segoe UI", 13)
-FONT_CAPTION = ("Segoe UI", 11)
+FONT_FAMILY_DISPLAY = "FunnelDisplay"
+FONT_FAMILY_BODY = "FunnelSans"
+
+FONT_HEADING = (FONT_FAMILY_DISPLAY, 16, "bold")
+FONT_BODY = (FONT_FAMILY_BODY, 13)
+FONT_CAPTION = (FONT_FAMILY_BODY, 11)
+FONT_TITLE = (FONT_FAMILY_DISPLAY, 18, "bold")
+FONT_METRIC_LARGE = (FONT_FAMILY_DISPLAY, 22, "bold")
+FONT_METRIC_MEDIUM = (FONT_FAMILY_DISPLAY, 20, "bold")
+FONT_CARD_HEADING = (FONT_FAMILY_DISPLAY, 16, "bold")
+FONT_CARD_SUBHEADING = (FONT_FAMILY_DISPLAY, 15, "bold")
+FONT_MODAL_BRAND = (FONT_FAMILY_DISPLAY, 20, "bold")
+FIELD_BG = BG_ELEVATED
+SIDEBAR_EXPANDED_WIDTH = 236
+SIDEBAR_COLLAPSED_WIDTH = 76
 
 
 class WattzUpVisual(ctk.CTk):
@@ -38,6 +51,7 @@ class WattzUpVisual(ctk.CTk):
     def __init__(self, application_service: WattzUpApplicationService | None = None) -> None:
         super().__init__()
         self._app = application_service or create_default_application_service()
+        self._register_custom_fonts()
 
         self.title("WattzUp | Home Energy Dashboard")
         self.geometry("1500x920")
@@ -87,14 +101,21 @@ class WattzUpVisual(ctk.CTk):
         self._map_view_box: tuple[float, float, float, float] | None = None
         self._startup_center_attempts = 0
         self._usage_display_map = {
-            "Heavy": "⚡ Heavy",
-            "Moderate": "◉ Moderate",
-            "Eco": "🍃 Eco",
+            "Heavy": "\u26A1 Heavy",
+            "Moderate": "\u25C9 Moderate",
+            "Eco": "\U0001F343 Eco",
         }
-        self._custom_usage_display = "⏱ Custom (hours/day)"
+        self._custom_usage_display = "\u23F1 Custom (hours/day)"
         self._usage_inverse_display_map = {display: raw for raw, display in self._usage_display_map.items()}
 
         self._user_value_label: ctk.CTkLabel | None = None
+        self._left_sidebar: ctk.CTkFrame | None = None
+        self._sidebar_title_label: ctk.CTkLabel | None = None
+        self._sidebar_toggle_button: ctk.CTkButton | None = None
+        self._sidebar_save_button: ctk.CTkButton | None = None
+        self._sidebar_budget_button: ctk.CTkButton | None = None
+        self._sidebar_logout_button: ctk.CTkButton | None = None
+        self._sidebar_collapsed = True
         self._cost_value_label: ctk.CTkLabel | None = None
         self._cost_budget_suffix_label: ctk.CTkLabel | None = None
         self._budget_value_label: ctk.CTkLabel | None = None
@@ -117,7 +138,7 @@ class WattzUpVisual(ctk.CTk):
         self._appliance_menu_var: ctk.StringVar | None = None
         self._usage_menu_var: ctk.StringVar | None = None
         self._custom_usage_entry: ctk.CTkEntry | None = None
-        self._appliance_menu_widget: ctk.CTkOptionMenu | None = None
+        self._appliance_menu_widget: ctk.CTkComboBox | None = None
         self._appliance_wattage_value_label: ctk.CTkLabel | None = None
         self._room_records_container: ctk.CTkScrollableFrame | None = None
         self._tab_appliance_container: ctk.CTkScrollableFrame | None = None
@@ -133,6 +154,19 @@ class WattzUpVisual(ctk.CTk):
 
         self._refresh_all()
         self._schedule_startup_centering()
+
+    def _register_custom_fonts(self) -> None:
+        font_paths = (
+            os.path.join("assets", "fonts", "FunnelDisplay.ttf"),
+            os.path.join("assets", "fonts", "FunnelSans.ttf"),
+        )
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    ctk.FontManager.load_font(font_path)
+                except Exception:
+                    # If font registration fails, tkinter will fall back to the next available family.
+                    continue
 
     # ---------- Build ----------
     def _load_assets(self) -> None:
@@ -196,53 +230,86 @@ class WattzUpVisual(ctk.CTk):
             )
 
     def _build_layout(self) -> None:
-        self.grid_rowconfigure(0, weight=0)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
 
-        self._build_top_bar()
+        self._build_left_sidebar()
         self._build_body()
 
-    def _build_top_bar(self) -> None:
-        top = ctk.CTkFrame(self, fg_color=BG_ELEVATED, corner_radius=0, height=56)
-        top.grid(row=0, column=0, sticky="ew")
-        top.grid_propagate(False)
-        top.grid_columnconfigure(0, weight=1)
-        top.grid_columnconfigure(1, weight=0)
-        top.grid_columnconfigure(2, weight=0)
-        top.grid_columnconfigure(3, weight=0)
-        top.grid_columnconfigure(4, weight=0)
-        top.grid_columnconfigure(5, weight=0)
-
-        ctk.CTkLabel(top, text="WattzUp", font=("Segoe UI", 18, "bold"), text_color=TEXT_PRIMARY).grid(
-            row=0, column=0, padx=(20, 12), pady=10, sticky="w"
+    def _build_left_sidebar(self) -> None:
+        sidebar = ctk.CTkFrame(
+            self,
+            fg_color=BG_ELEVATED,
+            width=SIDEBAR_COLLAPSED_WIDTH,
+            corner_radius=0,
+            border_width=1,
+            border_color=BORDER_DEFAULT,
         )
+        sidebar.grid(row=0, column=0, sticky="nsw")
+        sidebar.grid_propagate(False)
+        sidebar.grid_rowconfigure(4, weight=1)
+        sidebar.grid_columnconfigure(0, weight=1)
+        self._left_sidebar = sidebar
 
-        self._user_value_label = ctk.CTkLabel(top, text="User: -", font=FONT_BODY, text_color=TEXT_SECONDARY)
-        self._user_value_label.grid(row=0, column=1, padx=(0, 16), pady=10, sticky="w")
+        header = ctk.CTkFrame(sidebar, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
+        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=0)
 
-        self._make_secondary_button(
-            top,
+        self._sidebar_title_label = ctk.CTkLabel(
+            header,
+            text="\u26A1",
+            font=(FONT_FAMILY_DISPLAY, 26, "bold"),
+            text_color=ACCENT_PRIMARY,
+        )
+        self._sidebar_title_label.grid(row=0, column=0, sticky="w")
+
+        self._sidebar_toggle_button = ctk.CTkButton(
+            header,
+            text="\u203A",
+            command=self._toggle_left_sidebar,
+            fg_color="transparent",
+            border_width=1,
+            border_color=BORDER_DEFAULT,
+            hover_color=BG_SURFACE,
+            text_color=TEXT_PRIMARY,
+            width=30,
+            height=30,
+            corner_radius=8,
+            font=FONT_BODY,
+        )
+        self._sidebar_toggle_button.grid(row=0, column=1, sticky="e")
+
+        self._user_value_label = ctk.CTkLabel(sidebar, text="User: -", font=FONT_BODY, text_color=TEXT_SECONDARY)
+        self._user_value_label.grid(row=1, column=0, padx=18, pady=(0, 14), sticky="w")
+
+        self._sidebar_save_button = self._make_secondary_button(
+            sidebar,
             "Save",
             self._save_data,
             icon=self._nav_icon_images.get("save"),
-        ).grid(row=0, column=2, padx=6, pady=10)
-        self._make_secondary_button(
-            top,
+        )
+        self._sidebar_save_button.grid(row=2, column=0, padx=14, pady=(8, 8), sticky="ew")
+        self._sidebar_budget_button = self._make_secondary_button(
+            sidebar,
             "Budget",
             self._show_budget_modal,
             icon=self._nav_icon_images.get("budget"),
-        ).grid(row=0, column=3, padx=6, pady=10)
-        self._make_secondary_button(
-            top,
+        )
+        self._sidebar_budget_button.grid(row=3, column=0, padx=14, pady=(0, 8), sticky="ew")
+        self._sidebar_logout_button = self._make_secondary_button(
+            sidebar,
             "Logout",
             self._logout,
             icon=self._nav_icon_images.get("logout"),
-        ).grid(row=0, column=4, padx=(6, 16), pady=10)
+        )
+        self._sidebar_logout_button.grid(row=5, column=0, padx=14, pady=(0, 14), sticky="ew")
+        self._refresh_left_sidebar()
 
     def _build_body(self) -> None:
         body = ctk.CTkFrame(self, fg_color=BG_BASE, corner_radius=0)
-        body.grid(row=1, column=0, sticky="nsew")
+        body.grid(row=0, column=1, sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
         body.grid_columnconfigure(1, weight=0)
         body.grid_rowconfigure(0, weight=1)
@@ -329,7 +396,7 @@ class WattzUpVisual(ctk.CTk):
         self._cost_value_label = ctk.CTkLabel(
             cost_stack,
             text="P0.00",
-            font=("Segoe UI", 22, "bold"),
+            font=FONT_METRIC_LARGE,
             text_color=TEXT_PRIMARY,
         )
         self._cost_value_label.pack(side="left")
@@ -353,7 +420,7 @@ class WattzUpVisual(ctk.CTk):
         self._budget_value_label = ctk.CTkLabel(
             budget_card,
             text="NOT SET",
-            font=("Segoe UI", 20, "bold"),
+            font=FONT_METRIC_MEDIUM,
             text_color=STATUS_NOTSET,
         )
         self._budget_value_label.grid(row=1, column=0, padx=16, pady=(0, 12), sticky="w")
@@ -472,12 +539,14 @@ class WattzUpVisual(ctk.CTk):
         def on_usage_change(selected: str) -> None:
             self._set_custom_usage_state(selected == self._custom_usage_display)
 
-        usage_menu = ctk.CTkOptionMenu(
+        usage_menu = ctk.CTkComboBox(
             add_card,
             values=self._usage_display_values(),
             variable=self._usage_menu_var,
             command=on_usage_change,
-            fg_color=BG_SURFACE,
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
             text_color=TEXT_PRIMARY,
@@ -485,29 +554,33 @@ class WattzUpVisual(ctk.CTk):
             width=170,
         )
         usage_menu.grid(row=2, column=1, padx=12, pady=(0, 8), sticky="ew")
+        self._bind_field_focus_border(usage_menu)
 
         self._custom_usage_entry = ctk.CTkEntry(
             add_card,
             placeholder_text="Custom hours/day (1-24)",
-            fg_color=BG_SURFACE,
+            fg_color=FIELD_BG,
             border_color=BORDER_DEFAULT,
             text_color=TEXT_PRIMARY,
             corner_radius=8,
             width=170,
         )
         self._custom_usage_entry.grid(row=3, column=1, padx=12, pady=(0, 8), sticky="ew")
+        self._bind_field_focus_border(self._custom_usage_entry)
         self._set_custom_usage_state(False)
 
         ctk.CTkLabel(add_card, text="Appliance", font=FONT_CAPTION, text_color=TEXT_SECONDARY).grid(
             row=4, column=0, padx=12, pady=(0, 2), sticky="w"
         )
         self._appliance_menu_var = ctk.StringVar(value="")
-        self._appliance_menu_widget = ctk.CTkOptionMenu(
+        self._appliance_menu_widget = ctk.CTkComboBox(
             add_card,
             values=[""],
             variable=self._appliance_menu_var,
             command=lambda _: self._refresh_selected_appliance_wattage(),
-            fg_color=BG_SURFACE,
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
             text_color=TEXT_PRIMARY,
@@ -515,6 +588,7 @@ class WattzUpVisual(ctk.CTk):
             width=220,
         )
         self._appliance_menu_widget.grid(row=5, column=0, columnspan=2, padx=12, pady=(0, 10), sticky="ew")
+        self._bind_field_focus_border(self._appliance_menu_widget)
 
         ctk.CTkLabel(add_card, text="Wattage", font=FONT_CAPTION, text_color=TEXT_SECONDARY).grid(
             row=6, column=0, padx=12, pady=(0, 2), sticky="w"
@@ -606,11 +680,40 @@ class WattzUpVisual(ctk.CTk):
             font=FONT_BODY,
         )
 
+    def _bind_field_focus_border(self, widget: ctk.CTkBaseClass) -> None:
+        def on_focus_in(_: object) -> None:
+            try:
+                widget.configure(border_color=BORDER_FOCUS)
+            except Exception:
+                return
+
+        def on_focus_out(_: object) -> None:
+            try:
+                widget.configure(border_color=BORDER_DEFAULT)
+            except Exception:
+                return
+
+        widget.bind("<FocusIn>", on_focus_in, add="+")
+        widget.bind("<FocusOut>", on_focus_out, add="+")
+
     def _clear_container(self, container: ctk.CTkScrollableFrame | None) -> None:
         if container is None:
             return
         for widget in container.winfo_children():
             widget.destroy()
+
+    def _pack_subtle_divider(
+        self,
+        container: ctk.CTkScrollableFrame,
+        padx: tuple[int, int] = (6, 6),
+        pady: tuple[int, int] = (4, 4),
+    ) -> None:
+        ctk.CTkFrame(
+            container,
+            fg_color=BORDER_DEFAULT,
+            height=2,
+            corner_radius=0,
+        ).pack(fill="x", padx=padx, pady=pady)
 
     def _build_room_hotspots(self) -> None:
         if self._map_label is None:
@@ -729,13 +832,13 @@ class WattzUpVisual(ctk.CTk):
     @staticmethod
     def _usage_icon(usage_level: str) -> str:
         if usage_level.startswith("Custom ("):
-            return "⏱"
+            return "\u23F1"
         mapping = {
-            "Heavy": "⚡",
-            "Moderate": "◉",
-            "Eco": "🍃",
+            "Heavy": "\u26A1",
+            "Moderate": "\u25C9",
+            "Eco": "\U0001F343",
         }
-        return mapping.get(usage_level, "◉")
+        return mapping.get(usage_level, "\u25C9")
 
     def _set_custom_usage_state(self, enabled: bool) -> None:
         if self._custom_usage_entry is None:
@@ -766,12 +869,49 @@ class WattzUpVisual(ctk.CTk):
     # ---------- Refresh ----------
     def _refresh_all(self) -> None:
         self._refresh_header()
+        self._refresh_left_sidebar()
         self._refresh_metrics()
         self._refresh_dashboard_rankings()
         self._refresh_sidebar_visibility()
         self._refresh_panel()
         self._refresh_map_view()
         self._refresh_map_highlight()
+
+    def _toggle_left_sidebar(self) -> None:
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        self._refresh_left_sidebar()
+
+    def _refresh_left_sidebar(self) -> None:
+        if self._left_sidebar is None:
+            return
+
+        self._left_sidebar.configure(
+            width=SIDEBAR_COLLAPSED_WIDTH if self._sidebar_collapsed else SIDEBAR_EXPANDED_WIDTH
+        )
+        self._left_sidebar.update_idletasks()
+
+        if self._sidebar_toggle_button is not None:
+            self._sidebar_toggle_button.configure(text="\u203A" if self._sidebar_collapsed else "\u2039")
+
+        if self._user_value_label is not None:
+            if self._sidebar_collapsed:
+                self._user_value_label.grid_remove()
+            else:
+                self._user_value_label.grid()
+
+        button_specs = (
+            (self._sidebar_save_button, "Save"),
+            (self._sidebar_budget_button, "Budget"),
+            (self._sidebar_logout_button, "Logout"),
+        )
+        for button, label in button_specs:
+            if button is None:
+                continue
+            button.configure(
+                text="" if self._sidebar_collapsed else label,
+                width=42 if self._sidebar_collapsed else 104,
+                anchor="center" if self._sidebar_collapsed else "w",
+            )
 
     def _refresh_sidebar_visibility(self) -> None:
         if self._body_frame is None or self._left_content_frame is None or self._right_sidebar is None:
@@ -835,6 +975,7 @@ class WattzUpVisual(ctk.CTk):
                     text_color=TEXT_SECONDARY,
                 ).pack(anchor="w", padx=6, pady=6)
                 return
+            total = len(ranked_rooms)
             for idx, (room, cost) in enumerate(ranked_rooms, start=1):
                 ctk.CTkLabel(
                     self._ranking_container,
@@ -842,6 +983,8 @@ class WattzUpVisual(ctk.CTk):
                     font=FONT_BODY,
                     text_color=TEXT_PRIMARY,
                 ).pack(anchor="w", padx=6, pady=2)
+                if idx < total:
+                    self._pack_subtle_divider(self._ranking_container)
             return
 
         ranked_appliances = self._app.ranked_appliances()[:5]
@@ -853,6 +996,7 @@ class WattzUpVisual(ctk.CTk):
                 text_color=TEXT_SECONDARY,
             ).pack(anchor="w", padx=6, pady=6)
             return
+        total = len(ranked_appliances)
         for idx, record in enumerate(ranked_appliances, start=1):
             ctk.CTkLabel(
                 self._ranking_container,
@@ -860,6 +1004,8 @@ class WattzUpVisual(ctk.CTk):
                 font=FONT_BODY,
                 text_color=TEXT_PRIMARY,
             ).pack(anchor="w", padx=6, pady=2)
+            if idx < total:
+                self._pack_subtle_divider(self._ranking_container)
 
     def _refresh_panel(self) -> None:
         room = self._selected_room
@@ -920,7 +1066,8 @@ class WattzUpVisual(ctk.CTk):
             ).pack(anchor="w", padx=6, pady=6)
             return
 
-        for idx, record in indexed_records:
+        total = len(indexed_records)
+        for position, (idx, record) in enumerate(indexed_records, start=1):
             row = ctk.CTkFrame(
                 self._room_records_container,
                 fg_color="transparent",
@@ -941,7 +1088,7 @@ class WattzUpVisual(ctk.CTk):
 
             ctk.CTkButton(
                 row,
-                text="✎",
+                text="\u270E",
                 command=lambda i=idx: self._show_edit_modal(i),
                 fg_color="transparent",
                 hover_color=BG_SURFACE,
@@ -950,11 +1097,11 @@ class WattzUpVisual(ctk.CTk):
                 height=28,
                 corner_radius=8,
                 border_width=0,
-                font=("Segoe UI", 16, "bold"),
+                font=FONT_CARD_HEADING,
             ).grid(row=0, column=1, padx=(0, 2), pady=1)
             ctk.CTkButton(
                 row,
-                text="🗑",
+                text="\U0001F5D1",
                 command=lambda i=idx: self._delete_record(i),
                 fg_color="transparent",
                 hover_color=BG_SURFACE,
@@ -963,8 +1110,10 @@ class WattzUpVisual(ctk.CTk):
                 height=28,
                 width=28,
                 border_width=0,
-                font=("Segoe UI", 15, "bold"),
+                font=FONT_CARD_SUBHEADING,
             ).grid(row=0, column=2, padx=(0, 2), pady=1)
+            if position < total:
+                self._pack_subtle_divider(self._room_records_container, padx=(4, 4), pady=(3, 3))
 
     def _refresh_panel_rankings(self) -> None:
         self._clear_container(self._tab_appliance_container)
@@ -1264,11 +1413,13 @@ class WattzUpVisual(ctk.CTk):
         if record.usage_level.startswith("Custom ("):
             initial_usage = self._custom_usage_display
         usage_var = ctk.StringVar(value=initial_usage)
-        usage_menu = ctk.CTkOptionMenu(
+        usage_menu = ctk.CTkComboBox(
             modal,
             values=self._usage_display_values(),
             variable=usage_var,
-            fg_color=BG_SURFACE,
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
             text_color=TEXT_PRIMARY,
@@ -1276,17 +1427,19 @@ class WattzUpVisual(ctk.CTk):
             width=320,
         )
         usage_menu.pack(padx=20, pady=(0, 14), anchor="w")
+        self._bind_field_focus_border(usage_menu)
 
         custom_usage_entry = ctk.CTkEntry(
             modal,
             placeholder_text="Custom hours/day (1-24)",
-            fg_color=BG_SURFACE,
+            fg_color=FIELD_BG,
             border_color=BORDER_DEFAULT,
             text_color=TEXT_PRIMARY,
             corner_radius=8,
             width=320,
         )
         custom_usage_entry.pack(padx=20, pady=(0, 14), anchor="w")
+        self._bind_field_focus_border(custom_usage_entry)
 
         if record.usage_level.startswith("Custom ("):
             custom_usage_entry.insert(0, str(record.hours_per_day))
@@ -1344,7 +1497,7 @@ class WattzUpVisual(ctk.CTk):
         entry = ctk.CTkEntry(
             modal,
             placeholder_text="Enter amount in pesos",
-            fg_color=BG_SURFACE,
+            fg_color=FIELD_BG,
             border_color=BORDER_DEFAULT,
             text_color=TEXT_PRIMARY,
             corner_radius=8,
@@ -1352,6 +1505,7 @@ class WattzUpVisual(ctk.CTk):
             width=320,
         )
         entry.pack(anchor="w", padx=20, pady=(0, 4))
+        self._bind_field_focus_border(entry)
 
         error_label = ctk.CTkLabel(modal, text="", font=FONT_CAPTION, text_color=STATUS_OVER)
         error_label.pack(anchor="w", padx=20, pady=(0, 8))
@@ -1382,7 +1536,7 @@ class WattzUpVisual(ctk.CTk):
         modal = self._create_modal("Welcome to WattzUp", 420, 280)
         completed = {"ok": False}
 
-        ctk.CTkLabel(modal, text="WattzUp", font=("Segoe UI", 20, "bold"), text_color=TEXT_PRIMARY).pack(
+        ctk.CTkLabel(modal, text="WattzUp", font=FONT_MODAL_BRAND, text_color=TEXT_PRIMARY).pack(
             pady=(20, 4)
         )
         ctk.CTkLabel(
@@ -1393,11 +1547,13 @@ class WattzUpVisual(ctk.CTk):
         ).pack(pady=(0, 14))
 
         user_var = ctk.StringVar(value=users[0] if users else "")
-        user_menu = ctk.CTkOptionMenu(
+        user_menu = ctk.CTkComboBox(
             modal,
             values=users if users else [""],
             variable=user_var,
-            fg_color=BG_SURFACE,
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
             text_color=TEXT_PRIMARY,
@@ -1405,6 +1561,7 @@ class WattzUpVisual(ctk.CTk):
             width=340,
         )
         user_menu.pack(pady=(0, 10))
+        self._bind_field_focus_border(user_menu)
         if not users:
             user_menu.configure(state="disabled")
 
@@ -1454,7 +1611,7 @@ class WattzUpVisual(ctk.CTk):
         entry = ctk.CTkEntry(
             modal,
             placeholder_text="Enter username",
-            fg_color=BG_SURFACE,
+            fg_color=FIELD_BG,
             border_color=BORDER_DEFAULT,
             text_color=TEXT_PRIMARY,
             corner_radius=8,
@@ -1462,6 +1619,7 @@ class WattzUpVisual(ctk.CTk):
             height=36,
         )
         entry.pack(anchor="w", padx=20, pady=(0, 4))
+        self._bind_field_focus_border(entry)
 
         error_label = ctk.CTkLabel(modal, text="", font=FONT_CAPTION, text_color=STATUS_OVER)
         error_label.pack(anchor="w", padx=20, pady=(0, 8))

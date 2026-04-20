@@ -49,13 +49,14 @@ DATA_DIRECTORY: str = "data"
 USER_RECORD_SUFFIX: str = "_household_records.csv"
 
 # UI design tokens (customtkinter)
-BG_BASE: str = "#1a1a2e"
-BG_SURFACE: str = "#16213e"
-BG_ELEVATED: str = "#0f3460"
+# Off-black base with slightly lighter panels for clear depth.
+BG_BASE: str = "#0f1011"
+BG_SURFACE: str = "#17191b"
+BG_ELEVATED: str = "#1f2226"
 
-ACCENT_PRIMARY: str = "#e94560"
-ACCENT_HOVER: str = "#c73652"
-ACCENT_MUTED: str = "#533483"
+ACCENT_PRIMARY: str = "#1f4a8a"
+ACCENT_HOVER: str = "#2d5ea8"
+ACCENT_MUTED: str = "#16365f"
 
 TEXT_PRIMARY: str = "#eaeaea"
 TEXT_SECONDARY: str = "#a0a0b0"
@@ -65,5 +66,5 @@ STATUS_UNDER: str = "#4caf82"
 STATUS_OVER: str = "#e94560"
 STATUS_NOTSET: str = "#a0a0b0"
 
-BORDER_DEFAULT: str = "#2a2a4a"
-BORDER_FOCUS: str = "#e94560"
+BORDER_DEFAULT: str = "#2a2d31"
+BORDER_FOCUS: str = "#2d5ea8"
