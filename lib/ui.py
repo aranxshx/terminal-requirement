@@ -1112,12 +1112,39 @@ class WattzUpVisual(ctk.CTk):
         modal.focus_set()
         modal.bind("<Escape>", lambda _: modal.destroy())
         self._center_modal(modal)
+        # Recenter after idle because some Windows/Tk setups finalize geometry slightly later.
+        modal.after(10, lambda: self._safe_center_modal(modal))
         return modal
 
+    def _safe_center_modal(self, modal: ctk.CTkToplevel) -> None:
+        if not modal.winfo_exists():
+            return
+        self._center_modal(modal)
+
     def _center_modal(self, modal: ctk.CTkToplevel) -> None:
+        self.update_idletasks()
         modal.update_idletasks()
-        x = self.winfo_x() + (self.winfo_width() - modal.winfo_width()) // 2
-        y = self.winfo_y() + (self.winfo_height() - modal.winfo_height()) // 2
+
+        modal_w = max(1, modal.winfo_width())
+        modal_h = max(1, modal.winfo_height())
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+
+        parent_mapped = self.winfo_ismapped()
+        parent_w = self.winfo_width()
+        parent_h = self.winfo_height()
+
+        if parent_mapped and parent_w > 1 and parent_h > 1:
+            x = self.winfo_x() + (parent_w - modal_w) // 2
+            y = self.winfo_y() + (parent_h - modal_h) // 2
+        else:
+            x = (screen_w - modal_w) // 2
+            y = (screen_h - modal_h) // 2
+
+        max_x = max(0, screen_w - modal_w)
+        max_y = max(0, screen_h - modal_h)
+        x = max(0, min(x, max_x))
+        y = max(0, min(y, max_y))
         modal.geometry(f"+{x}+{y}")
 
     def _center_main_window(self) -> None:
