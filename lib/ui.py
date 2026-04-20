@@ -109,6 +109,8 @@ class WattzUpVisual(ctk.CTk):
         self._usage_inverse_display_map = {display: raw for raw, display in self._usage_display_map.items()}
 
         self._user_value_label: ctk.CTkLabel | None = None
+        self._dashboard_nav_button: ctk.CTkButton | None = None
+        self._management_nav_button: ctk.CTkButton | None = None
         self._left_sidebar: ctk.CTkFrame | None = None
         self._sidebar_title_label: ctk.CTkLabel | None = None
         self._sidebar_toggle_button: ctk.CTkButton | None = None
@@ -116,6 +118,9 @@ class WattzUpVisual(ctk.CTk):
         self._sidebar_budget_button: ctk.CTkButton | None = None
         self._sidebar_logout_button: ctk.CTkButton | None = None
         self._sidebar_collapsed = True
+        self._active_page = "dashboard"
+        self._dashboard_page: ctk.CTkFrame | None = None
+        self._management_page: ctk.CTkFrame | None = None
         self._cost_value_label: ctk.CTkLabel | None = None
         self._cost_budget_suffix_label: ctk.CTkLabel | None = None
         self._budget_value_label: ctk.CTkLabel | None = None
@@ -248,7 +253,7 @@ class WattzUpVisual(ctk.CTk):
         )
         sidebar.grid(row=0, column=0, sticky="nsw")
         sidebar.grid_propagate(False)
-        sidebar.grid_rowconfigure(4, weight=1)
+        sidebar.grid_rowconfigure(6, weight=1)
         sidebar.grid_columnconfigure(0, weight=1)
         self._left_sidebar = sidebar
 
@@ -262,8 +267,10 @@ class WattzUpVisual(ctk.CTk):
             text="\u26A1",
             font=(FONT_FAMILY_DISPLAY, 26, "bold"),
             text_color=ACCENT_PRIMARY,
+            cursor="hand2",
         )
         self._sidebar_title_label.grid(row=0, column=0, sticky="w")
+        self._sidebar_title_label.bind("<Button-1>", lambda _: self._toggle_left_sidebar())
 
         self._sidebar_toggle_button = ctk.CTkButton(
             header,
@@ -284,46 +291,70 @@ class WattzUpVisual(ctk.CTk):
         self._user_value_label = ctk.CTkLabel(sidebar, text="User: -", font=FONT_BODY, text_color=TEXT_SECONDARY)
         self._user_value_label.grid(row=1, column=0, padx=18, pady=(0, 14), sticky="w")
 
+        self._dashboard_nav_button = self._make_secondary_button(
+            sidebar,
+            "Dashboard",
+            lambda: self._set_active_page("dashboard"),
+            icon=self._nav_icon_images.get("save"),
+        )
+        self._dashboard_nav_button.grid(row=2, column=0, padx=14, pady=(0, 8), sticky="ew")
+        self._management_nav_button = self._make_secondary_button(
+            sidebar,
+            "Management",
+            lambda: self._set_active_page("management"),
+            icon=self._nav_icon_images.get("budget"),
+        )
+        self._management_nav_button.grid(row=3, column=0, padx=14, pady=(0, 4), sticky="ew")
+
         self._sidebar_save_button = self._make_secondary_button(
             sidebar,
             "Save",
             self._save_data,
             icon=self._nav_icon_images.get("save"),
         )
-        self._sidebar_save_button.grid(row=2, column=0, padx=14, pady=(8, 8), sticky="ew")
+        self._sidebar_save_button.grid(row=4, column=0, padx=14, pady=(0, 8), sticky="ew")
         self._sidebar_budget_button = self._make_secondary_button(
             sidebar,
             "Budget",
             self._show_budget_modal,
             icon=self._nav_icon_images.get("budget"),
         )
-        self._sidebar_budget_button.grid(row=3, column=0, padx=14, pady=(0, 8), sticky="ew")
+        self._sidebar_budget_button.grid(row=5, column=0, padx=14, pady=(0, 8), sticky="ew")
         self._sidebar_logout_button = self._make_secondary_button(
             sidebar,
             "Logout",
             self._logout,
             icon=self._nav_icon_images.get("logout"),
         )
-        self._sidebar_logout_button.grid(row=5, column=0, padx=14, pady=(0, 14), sticky="ew")
+        self._sidebar_logout_button.grid(row=7, column=0, padx=14, pady=(0, 14), sticky="ew")
         self._refresh_left_sidebar()
 
     def _build_body(self) -> None:
         body = ctk.CTkFrame(self, fg_color=BG_BASE, corner_radius=0)
         body.grid(row=0, column=1, sticky="nsew")
-        body.grid_columnconfigure(0, weight=1)
-        body.grid_columnconfigure(1, weight=0)
         body.grid_rowconfigure(0, weight=1)
-        self._body_frame = body
+        body.grid_columnconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(body, fg_color=BG_BASE, corner_radius=0)
-        left.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=(16, 16))
-        left.grid_columnconfigure(0, weight=1)
-        left.grid_rowconfigure(0, weight=0)
-        left.grid_rowconfigure(1, weight=1)
-        self._left_content_frame = left
+        dashboard_page = ctk.CTkFrame(body, fg_color=BG_BASE, corner_radius=0)
+        dashboard_page.grid(row=0, column=0, sticky="nsew")
+        dashboard_page.grid_columnconfigure(0, weight=1)
+        dashboard_page.grid_rowconfigure(1, weight=1)
+        self._dashboard_page = dashboard_page
 
-        overview = ctk.CTkFrame(left, fg_color=BG_BASE, corner_radius=0)
-        overview.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        management_page = ctk.CTkFrame(body, fg_color=BG_BASE, corner_radius=0)
+        management_page.grid(row=0, column=0, sticky="nsew")
+        management_page.grid_columnconfigure(0, weight=1)
+        management_page.grid_columnconfigure(1, weight=0)
+        management_page.grid_rowconfigure(0, weight=1)
+        self._management_page = management_page
+
+        self._build_dashboard_page(dashboard_page)
+        self._build_management_page(management_page)
+        self._refresh_page_visibility()
+
+    def _build_dashboard_page(self, parent: ctk.CTkFrame) -> None:
+        overview = ctk.CTkFrame(parent, fg_color=BG_BASE, corner_radius=0)
+        overview.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 12))
         overview.grid_columnconfigure(0, weight=1)
         overview.grid_columnconfigure(1, weight=1)
         overview.grid_rowconfigure(0, weight=1)
@@ -332,10 +363,62 @@ class WattzUpVisual(ctk.CTk):
         self._build_metrics_row(overview)
         self._build_rankings_row(overview)
 
-        self._build_map_area(left)
+        lower = ctk.CTkFrame(parent, fg_color=BG_BASE, corner_radius=0)
+        lower.grid(row=1, column=0, sticky="nsew", padx=16, pady=(0, 16))
+        lower.grid_columnconfigure(0, weight=1)
+        lower.grid_columnconfigure(1, weight=1)
+        lower.grid_rowconfigure(0, weight=1)
+        lower.grid_rowconfigure(1, weight=1)
+
+        visuals_card = self._make_card(lower)
+        visuals_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 8))
+        ctk.CTkLabel(visuals_card, text="Visualizations", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
+            anchor="w", padx=14, pady=(12, 6)
+        )
+        ctk.CTkLabel(
+            visuals_card,
+            text="Data visualizations coming soon.",
+            font=FONT_BODY,
+            text_color=TEXT_SECONDARY,
+        ).pack(anchor="w", padx=14, pady=(0, 12))
+
+        insights_card = self._make_card(lower)
+        insights_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 8))
+        ctk.CTkLabel(insights_card, text="Insights", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
+            anchor="w", padx=14, pady=(12, 6)
+        )
+        ctk.CTkLabel(
+            insights_card,
+            text="Actionable insights will appear here.",
+            font=FONT_BODY,
+            text_color=TEXT_SECONDARY,
+        ).pack(anchor="w", padx=14, pady=(0, 12))
+
+        table_card = self._make_card(lower)
+        table_card.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        ctk.CTkLabel(table_card, text="Records Table", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
+            anchor="w", padx=14, pady=(12, 6)
+        )
+        ctk.CTkLabel(
+            table_card,
+            text="Full table with search/filter/sort coming soon.",
+            font=FONT_BODY,
+            text_color=TEXT_SECONDARY,
+        ).pack(anchor="w", padx=14, pady=(0, 12))
+
+    def _build_management_page(self, parent: ctk.CTkFrame) -> None:
+        self._body_frame = parent
+
+        left = ctk.CTkFrame(parent, fg_color=BG_BASE, corner_radius=0)
+        left.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=(16, 16))
+        left.grid_columnconfigure(0, weight=1)
+        left.grid_rowconfigure(0, weight=1)
+        self._left_content_frame = left
+
+        self._build_map_area(left, row=0)
 
         right = ctk.CTkFrame(
-            body,
+            parent,
             fg_color=BG_SURFACE,
             width=420,
             corner_radius=12,
@@ -473,9 +556,9 @@ class WattzUpVisual(ctk.CTk):
         self._overview_rankings_card.configure(height=target_height)
         self._overview_rankings_card.grid_propagate(False)
 
-    def _build_map_area(self, parent: ctk.CTkFrame) -> None:
+    def _build_map_area(self, parent: ctk.CTkFrame, row: int = 1) -> None:
         map_card = self._make_card(parent)
-        map_card.grid(row=1, column=0, sticky="nsew")
+        map_card.grid(row=row, column=0, sticky="nsew")
         map_card.grid_rowconfigure(0, weight=1)
         map_card.grid_columnconfigure(0, weight=1)
 
@@ -870,6 +953,7 @@ class WattzUpVisual(ctk.CTk):
     def _refresh_all(self) -> None:
         self._refresh_header()
         self._refresh_left_sidebar()
+        self._refresh_page_visibility()
         self._refresh_metrics()
         self._refresh_dashboard_rankings()
         self._refresh_sidebar_visibility()
@@ -881,6 +965,23 @@ class WattzUpVisual(ctk.CTk):
         self._sidebar_collapsed = not self._sidebar_collapsed
         self._refresh_left_sidebar()
 
+    def _set_active_page(self, page: str) -> None:
+        if page not in {"dashboard", "management"}:
+            return
+        if self._active_page == page:
+            return
+        self._active_page = page
+        self._refresh_page_visibility()
+        self._refresh_all()
+
+    def _refresh_page_visibility(self) -> None:
+        if self._dashboard_page is None or self._management_page is None:
+            return
+        if self._active_page == "dashboard":
+            self._dashboard_page.lift()
+        else:
+            self._management_page.lift()
+
     def _refresh_left_sidebar(self) -> None:
         if self._left_sidebar is None:
             return
@@ -891,13 +992,35 @@ class WattzUpVisual(ctk.CTk):
         self._left_sidebar.update_idletasks()
 
         if self._sidebar_toggle_button is not None:
-            self._sidebar_toggle_button.configure(text="\u203A" if self._sidebar_collapsed else "\u2039")
+            if self._sidebar_collapsed:
+                self._sidebar_toggle_button.grid_remove()
+            else:
+                self._sidebar_toggle_button.configure(text="\u2039")
+                self._sidebar_toggle_button.grid()
+
+        if self._sidebar_title_label is not None:
+            self._sidebar_title_label.grid_configure(sticky="" if self._sidebar_collapsed else "w")
 
         if self._user_value_label is not None:
             if self._sidebar_collapsed:
                 self._user_value_label.grid_remove()
             else:
                 self._user_value_label.grid()
+
+        page_specs = (
+            (self._dashboard_nav_button, "Dashboard", self._active_page == "dashboard"),
+            (self._management_nav_button, "Management", self._active_page == "management"),
+        )
+        for button, label, selected in page_specs:
+            if button is None:
+                continue
+            button.configure(
+                text="" if self._sidebar_collapsed else label,
+                width=42 if self._sidebar_collapsed else 104,
+                anchor="center" if self._sidebar_collapsed else "w",
+                fg_color=ACCENT_MUTED if selected else "transparent",
+                border_color=ACCENT_PRIMARY if selected else BORDER_DEFAULT,
+            )
 
         button_specs = (
             (self._sidebar_save_button, "Save"),
@@ -915,6 +1038,10 @@ class WattzUpVisual(ctk.CTk):
 
     def _refresh_sidebar_visibility(self) -> None:
         if self._body_frame is None or self._left_content_frame is None or self._right_sidebar is None:
+            return
+        if self._active_page != "management":
+            self._right_sidebar.grid_remove()
+            self._right_sidebar_visible = False
             return
 
         should_show = self._selected_room is not None
