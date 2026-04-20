@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
+
 import customtkinter as ctk
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from tkinter import messagebox
 
 from lib.app import WattzUpApplicationService, create_default_application_service
@@ -26,6 +28,15 @@ class WattzUpVisual(ctk.CTk):
         self._current_room_name = "Kitchen"
         self._map_buttons: dict[str, ctk.CTkButton] = {}
         self._room_hotspots: dict[str, tuple[float, float, str]] = {}
+        # MDI private-use glyphs rendered as button images from local font file.
+        self._room_icons = {
+            "Kitchen": "\U000F04B9",       # mdi-stove
+            "Living Room": "\U000F04B8",   # mdi-sofa
+            "Bedroom": "\U000F02E3",       # mdi-bed
+            "Bathroom": "\U000F09A0",      # mdi-shower
+            "Dining Area": "\U000F0A70",   # mdi-silverware-fork-knife
+        }
+        self._room_icon_images: dict[str, ctk.CTkImage] = {}
         self._map_focus_room: str | None = None
         self._map_image_label: ctk.CTkLabel | None = None
         self._back_button: ctk.CTkButton | None = None
@@ -38,6 +49,7 @@ class WattzUpVisual(ctk.CTk):
         self._resample_filter = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
         self._fast_resample_filter = Image.Resampling.BILINEAR if hasattr(Image, "Resampling") else Image.BILINEAR
         self._font_family = "Segoe UI"
+        self._load_room_icon_images()
 
         self._configure_grid()
         self._build_sidebar()
@@ -161,6 +173,34 @@ class WattzUpVisual(ctk.CTk):
         )
         label_widget.pack(pady=(2, 5))
 
+    def _load_room_icon_images(self) -> None:
+        font_path = os.path.join("assets", "materialdesignicons-webfont.ttf")
+        if not os.path.exists(font_path):
+            return
+
+        try:
+            icon_font = ImageFont.truetype(font_path, 20)
+        except OSError:
+            return
+
+        for room_name, glyph in self._room_icons.items():
+            icon_canvas = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(icon_canvas)
+            text_box = draw.textbbox((0, 0), glyph, font=icon_font)
+            glyph_width = text_box[2] - text_box[0]
+            glyph_height = text_box[3] - text_box[1]
+            draw.text(
+                ((24 - glyph_width) / 2 - text_box[0], (24 - glyph_height) / 2 - text_box[1]),
+                glyph,
+                font=icon_font,
+                fill=(235, 241, 247, 255),
+            )
+            self._room_icon_images[room_name] = ctk.CTkImage(
+                light_image=icon_canvas,
+                dark_image=icon_canvas,
+                size=(18, 18),
+            )
+
     def _show_map(self) -> None:
         for widget in self.main_view.winfo_children():
             widget.destroy()
@@ -224,6 +264,8 @@ class WattzUpVisual(ctk.CTk):
             button = ctk.CTkButton(
                 parent,
                 text=room_name,
+                image=self._room_icon_images.get(room_name),
+                compound="left",
                 width=140,
                 height=45,
                 font=(self._font_family, 14, "bold"),
@@ -461,6 +503,8 @@ class WattzUpVisual(ctk.CTk):
             else:
                 button.configure(
                     text=room_name,
+                    image=self._room_icon_images.get(room_name),
+                    compound="left",
                     width=140,
                     height=45,
                     corner_radius=6,
@@ -478,7 +522,7 @@ class WattzUpVisual(ctk.CTk):
             if self._is_zoom_animating:
                 continue
             if room_name == self._current_room_name:
-                button.configure(fg_color="#50C878", text_color="#111214", hover_color="#50C878")
+                button.configure(fg_color="#50C878", text_color="#FFFFFF", hover_color="#50C878")
             else:
                 button.configure(fg_color="#1e2023", text_color="#f5f5f5")
 
