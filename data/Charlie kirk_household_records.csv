@@ -1,0 +1,3 @@
+room,appliance,wattage,usage_level,hours_per_day,kwh,monthly_cost
+Bedroom,Charger,10,Moderate,4,1.2,14.4
+Bedroom,Aircon,1500,Moderate,4,180.0,2160.0
