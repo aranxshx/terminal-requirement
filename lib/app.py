@@ -63,6 +63,31 @@ class WattzUpApplicationService:
         self.save_current_session()
         return record
 
+    def delete_record_at(self, index: int) -> ApplianceRecord:
+        """Delete one record by index and persist session."""
+        if index < 0 or index >= len(self.records):
+            raise IndexError("Record index out of range.")
+
+        record = self.records.pop(index)
+        self.save_current_session()
+        return record
+
+    def update_record_usage_at(self, index: int, usage_level: str) -> ApplianceRecord:
+        """Update the usage level for one record and persist session."""
+        if index < 0 or index >= len(self.records):
+            raise IndexError("Record index out of range.")
+
+        current = self.records[index]
+        updated = self._computation_service.build_record(
+            room=current.room,
+            appliance=current.appliance,
+            wattage=current.wattage,
+            usage_level=usage_level,
+        )
+        self.records[index] = updated
+        self.save_current_session()
+        return updated
+
     def save_current_session(self) -> None:
         if self.current_username is None:
             raise RuntimeError("No active user session.")

@@ -24,6 +24,8 @@ class WattzUpVisual(ctk.CTk):
 
         self._current_room_color = "#50C878"
         self._current_room_name = "Kitchen"
+        self._map_buttons: dict[str, ctk.CTkButton] = {}
+        self._font_family = "Segoe UI"
 
         self._configure_grid()
         self._build_sidebar()
@@ -43,7 +45,12 @@ class WattzUpVisual(ctk.CTk):
         self.sidebar = ctk.CTkFrame(self, width=110, corner_radius=0, fg_color="#1a1c1e", border_width=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        logo_label = ctk.CTkLabel(self.sidebar, text="⚡", font=("Arial", 25, "bold"), text_color="#50C878")
+        logo_label = ctk.CTkLabel(
+            self.sidebar,
+            text="⚡",
+            font=(self._font_family, 26, "bold"),
+            text_color="#50C878",
+        )
         logo_label.pack(pady=(30, 40))
 
         self._create_sidebar_item("🏠", "Dashboard", self._collapse_card, pady=10, active=True)
@@ -92,7 +99,7 @@ class WattzUpVisual(ctk.CTk):
             text=icon,
             width=60,
             height=45,
-            font=("Arial", 24),
+            font=(self._font_family, 24),
             fg_color=bg_color,
             hover_color="#2d2f31",
             command=command,
@@ -100,7 +107,12 @@ class WattzUpVisual(ctk.CTk):
         )
         button.pack()
 
-        label_widget = ctk.CTkLabel(container, text=label, font=("Arial", 10), text_color=text_color)
+        label_widget = ctk.CTkLabel(
+            container,
+            text=label,
+            font=(self._font_family, 11, "bold"),
+            text_color=text_color,
+        )
         label_widget.pack(pady=(2, 5))
 
     def _show_map(self) -> None:
@@ -127,14 +139,16 @@ class WattzUpVisual(ctk.CTk):
         ctk.CTkLabel(
             pill_container,
             text=f"Estimated Monthly Cost: P{total_cost:,.2f}",
-            font=("Arial", 26, "bold"),
+            font=(self._font_family, 27, "bold"),
         ).pack(pady=(15, 0), padx=40)
         ctk.CTkLabel(
             pill_container,
             text=f"Budget Status: {status_text}",
-            font=("Arial", 18),
+            font=(self._font_family, 19, "bold"),
             text_color=status_color,
         ).pack(pady=(0, 15))
+
+        self._build_default_rankings(self.main_view)
 
         if self.bg_image is not None:
             image_label = ctk.CTkLabel(self.main_view, image=self.bg_image, text="")
@@ -142,6 +156,7 @@ class WattzUpVisual(ctk.CTk):
             self._add_hotspots(image_label)
 
     def _add_hotspots(self, parent: ctk.CTkLabel) -> None:
+        self._map_buttons.clear()
         hotspots = [
             ("Kitchen", 0.40, 0.48, "#FF7F50"),
             ("Living Room", 0.75, 0.65, "#50C878"),
@@ -156,7 +171,7 @@ class WattzUpVisual(ctk.CTk):
                 text=room_name,
                 width=140,
                 height=45,
-                font=("Arial", 14, "bold"),
+                font=(self._font_family, 14, "bold"),
                 fg_color="#1e2023",
                 border_width=2,
                 border_color=color,
@@ -166,10 +181,56 @@ class WattzUpVisual(ctk.CTk):
                 command=lambda room=room_name, value=color: self._open_card(room, value),
             )
             button.place(relx=rel_x, rely=rel_y, anchor="center")
+            self._map_buttons[room_name] = button
+
+        self._refresh_room_highlight()
+
+    def _refresh_room_highlight(self) -> None:
+        for room_name, button in self._map_buttons.items():
+            if room_name == self._current_room_name:
+                button.configure(fg_color="#50C878", text_color="#111214", hover_color="#50C878")
+            else:
+                button.configure(fg_color="#1e2023", text_color="#f5f5f5")
+
+    def _build_default_rankings(self, parent: ctk.CTkFrame) -> None:
+        ranking_wrap = ctk.CTkFrame(parent, fg_color="#1a1c1e", corner_radius=16, border_color="#2d2f31", border_width=1)
+        ranking_wrap.pack(fill="x", padx=30, pady=(5, 10))
+
+        left = ctk.CTkFrame(ranking_wrap, fg_color="transparent")
+        left.pack(side="left", fill="both", expand=True, padx=(16, 8), pady=12)
+        right = ctk.CTkFrame(ranking_wrap, fg_color="transparent")
+        right.pack(side="left", fill="both", expand=True, padx=(8, 16), pady=12)
+
+        ctk.CTkLabel(left, text="Appliance Ranking", font=(self._font_family, 18, "bold")).pack(anchor="w", pady=(0, 8))
+        ranked_appliances = self._app.ranked_appliances()[:5]
+        if ranked_appliances:
+            for index, record in enumerate(ranked_appliances, start=1):
+                ctk.CTkLabel(
+                    left,
+                    text=f"{index}. {record.appliance} ({record.room}) - P{record.monthly_cost:,.2f}",
+                    font=(self._font_family, 14),
+                    anchor="w",
+                ).pack(anchor="w", pady=2)
+        else:
+            ctk.CTkLabel(left, text="No appliance rankings yet.", font=(self._font_family, 13), text_color="#8a8d91").pack(anchor="w")
+
+        ctk.CTkLabel(right, text="Room Ranking", font=(self._font_family, 18, "bold")).pack(anchor="w", pady=(0, 8))
+        ranked_rooms = self._app.ranked_rooms()[:5]
+        if ranked_rooms:
+            for index, (room, cost) in enumerate(ranked_rooms, start=1):
+                ctk.CTkLabel(
+                    right,
+                    text=f"{index}. {room} - P{cost:,.2f}",
+                    font=(self._font_family, 14),
+                    anchor="w",
+                ).pack(anchor="w", pady=2)
+        else:
+            ctk.CTkLabel(right, text="No room rankings yet.", font=(self._font_family, 13), text_color="#8a8d91").pack(anchor="w")
 
     def _open_card(self, room_name: str, color: str) -> None:
         self._current_room_name = room_name
         self._current_room_color = color
+        self._refresh_room_highlight()
         self._fill_card_content(room_name, color)
         self.card_panel.grid(row=0, column=2, sticky="nsew")
         self.update_idletasks()
@@ -190,7 +251,7 @@ class WattzUpVisual(ctk.CTk):
             width=30,
             height=30,
             fg_color="transparent",
-            font=("Arial", 18),
+            font=(self._font_family, 18),
             hover_color="#e74c3c",
             command=self._collapse_card,
         ).pack(anchor="ne", padx=10, pady=10)
@@ -198,7 +259,7 @@ class WattzUpVisual(ctk.CTk):
         ctk.CTkLabel(
             self.card_panel,
             text=f" {room_name}",
-            font=("Arial", 32, "bold"),
+            font=(self._font_family, 32, "bold"),
             text_color=color,
         ).pack(pady=(0, 10))
 
@@ -214,7 +275,7 @@ class WattzUpVisual(ctk.CTk):
         self._build_room_ranking_tab(room_tab)
 
     def _build_manage_tab(self, tab: ctk.CTkFrame, room_name: str, color: str) -> None:
-        ctk.CTkLabel(tab, text="+ Add New Appliance:", font=("Arial", 16)).pack(pady=10)
+        ctk.CTkLabel(tab, text="+ Add New Appliance:", font=(self._font_family, 16, "bold")).pack(pady=10)
 
         appliances = self._app.catalog.appliances_for_room(room_name)
         app_var = ctk.StringVar(value=appliances[0] if appliances else "")
@@ -230,13 +291,14 @@ class WattzUpVisual(ctk.CTk):
             height=45,
             fg_color=color,
             text_color="#111214",
-            font=("Arial", 14, "bold"),
+            font=(self._font_family, 14, "bold"),
             border_spacing=0,
             corner_radius=6,
             command=lambda: self._add_entry(room_name, app_var.get(), usage_var.get(), color),
         ).pack(pady=20)
 
-        self._add_empty_state_diagram(tab)
+        ctk.CTkLabel(tab, text="Existing Records", font=(self._font_family, 16, "bold")).pack(pady=(8, 6))
+        self._build_room_records_list(tab, room_name, color)
 
     def _build_appliance_ranking_tab(self, tab: ctk.CTkFrame, room_name: str) -> None:
         room_records = [record for record in self._app.ranked_appliances() if record.room == room_name]
@@ -245,7 +307,7 @@ class WattzUpVisual(ctk.CTk):
                 ctk.CTkLabel(
                     tab,
                     text=f"{index}. {record.appliance}: P{record.monthly_cost:.2f}",
-                    font=("Arial", 15),
+                    font=(self._font_family, 15),
                 ).pack(pady=4, anchor="w", padx=15)
         else:
             self._add_empty_state_diagram(tab, text="Analyze your usage ranking.")
@@ -257,7 +319,7 @@ class WattzUpVisual(ctk.CTk):
                 ctk.CTkLabel(
                     tab,
                     text=f"{index}. {room}: P{cost:,.2f}",
-                    font=("Arial", 15),
+                    font=(self._font_family, 15),
                 ).pack(pady=4, anchor="w", padx=15)
         else:
             self._add_empty_state_diagram(tab, text="Add appliance entries to generate room rankings.")
@@ -266,9 +328,117 @@ class WattzUpVisual(ctk.CTk):
         diagram_frame = ctk.CTkFrame(parent, fg_color="transparent")
         diagram_frame.pack(pady=40)
 
-        ctk.CTkLabel(diagram_frame, text="[□] [□] [|]", font=("Arial", 28, "bold"), text_color="#2d2f31").pack()
-        ctk.CTkLabel(diagram_frame, text="[O] [□] [|]", font=("Arial", 28, "bold"), text_color="#2d2f31").pack()
-        ctk.CTkLabel(parent, text=text, font=("Arial", 14), text_color="#8a8d91", wraplength=350).pack(pady=10)
+        ctk.CTkLabel(
+            diagram_frame,
+            text="[□] [□] [|]",
+            font=(self._font_family, 28, "bold"),
+            text_color="#2d2f31",
+        ).pack()
+        ctk.CTkLabel(
+            diagram_frame,
+            text="[O] [□] [|]",
+            font=(self._font_family, 28, "bold"),
+            text_color="#2d2f31",
+        ).pack()
+        ctk.CTkLabel(
+            parent,
+            text=text,
+            font=(self._font_family, 14),
+            text_color="#8a8d91",
+            wraplength=350,
+        ).pack(pady=10)
+
+    def _build_room_records_list(self, parent: ctk.CTkFrame, room_name: str, color: str) -> None:
+        list_frame = ctk.CTkScrollableFrame(parent, height=200, fg_color="#17191b")
+        list_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        indexed_room_records = [
+            (index, record)
+            for index, record in enumerate(self._app.records)
+            if record.room == room_name
+        ]
+
+        if not indexed_room_records:
+            ctk.CTkLabel(
+                list_frame,
+                text="No appliances recorded for this room.",
+                font=(self._font_family, 13),
+                text_color="#8a8d91",
+            ).pack(anchor="w", pady=8)
+            return
+
+        for index, record in indexed_room_records:
+            row = ctk.CTkFrame(list_frame, fg_color="#1f2226")
+            row.pack(fill="x", padx=4, pady=4)
+
+            summary_button = ctk.CTkButton(
+                row,
+                text=f"{record.appliance} | {record.usage_level} | P{record.monthly_cost:,.2f}",
+                fg_color="#2a2d32",
+                hover_color="#343941",
+                font=(self._font_family, 13),
+                anchor="w",
+                command=lambda: None,
+            )
+            summary_button.pack(side="left", fill="x", expand=True, padx=(8, 6), pady=8)
+
+            ctk.CTkButton(
+                row,
+                text="Edit",
+                width=56,
+                fg_color=color,
+                text_color="#111214",
+                font=(self._font_family, 12, "bold"),
+                command=lambda i=index: self._edit_record(i),
+            ).pack(side="left", padx=(0, 4), pady=8)
+
+            ctk.CTkButton(
+                row,
+                text="Delete",
+                width=64,
+                fg_color="#8B0000",
+                hover_color="#6e0000",
+                font=(self._font_family, 12, "bold"),
+                command=lambda i=index, room=room_name, room_color=color: self._delete_record(i, room, room_color),
+            ).pack(side="left", padx=(0, 8), pady=8)
+
+    def _edit_record(self, index: int) -> None:
+        record = self._app.records[index]
+        dialog = ctk.CTkInputDialog(
+            text=(
+                f"Editing: {record.appliance}\n"
+                f"Current usage: {record.usage_level}\n\n"
+                "Enter new usage level (Heavy, Moderate, Eco):"
+            ),
+            title="Edit Appliance",
+        )
+        raw_input = dialog.get_input()
+        if raw_input is None:
+            return
+
+        normalized = raw_input.strip().title()
+        try:
+            self._app.update_record_usage_at(index, normalized)
+        except (ValueError, IndexError) as exc:
+            messagebox.showerror("Error", str(exc))
+            return
+
+        self._show_map()
+        self._fill_card_content(self._current_room_name, self._current_room_color)
+
+    def _delete_record(self, index: int, room_name: str, color: str) -> None:
+        should_delete = messagebox.askyesno("Delete Appliance", "Delete this appliance record?")
+        if not should_delete:
+            return
+
+        try:
+            self._app.delete_record_at(index)
+        except (RuntimeError, IndexError) as exc:
+            messagebox.showerror("Error", str(exc))
+            return
+
+        self._show_map()
+        self._fill_card_content(room_name, color)
 
     def _login_user(self) -> None:
         existing = self._app.list_existing_users()
