@@ -1,4 +1,4 @@
-# TASK OWNERSHIP PLAN — WattzUp
+﻿# TASK OWNERSHIP PLAN â€” WattzUp
 ### Programming Languages Terminal Requirement | Sunfall Studios
 
 ---
@@ -7,21 +7,21 @@
 
 To avoid blocking each other, follow these ground rules from Day 1:
 
-- **Agree on a shared data contract early** (see Appendix below) — a standard Python dictionary/list structure that all members reference.
+- **Agree on a shared data contract early** (see Appendix below) â€” a standard Python dictionary/list structure that all members reference.
 - **Each member develops with stub/sample data first**, then switches to the real integrated data.
-- **Never wait for another member's code** — use a placeholder function if needed and replace it during integration.
+- **Never wait for another member's code** â€” use a placeholder function if needed and replace it during integration.
 - **Short checkpoints** (not one big merge at the end) keep everyone aligned.
 
 ---
 
-## Part 1 — Data Layer: Appliance Library & Record Storage
+## Part 1 â€” Data Layer: Appliance Library & Record Storage
 **Owner: Member 1**
 
 ### What You Own
 You are responsible for the **foundation data** of the entire system. This includes:
-- Defining the master appliance dictionary (rooms → appliances → wattage)
-- Defining usage level mappings (Heavy, Moderate, Eco → hours/day)
-- Writing `save_records()` and `load_records()` functions for `household_records.txt`
+- Defining the master appliance dictionary (rooms â†’ appliances â†’ wattage)
+- Defining usage level mappings (Heavy, Moderate, Eco â†’ hours/day)
+- Writing `save_records()` and `load_records()` functions for `household_records.csv`
 - Writing a helper to parse and validate lines read from file
 
 ### Specific Tasks
@@ -46,22 +46,22 @@ You are responsible for the **foundation data** of the entire system. This inclu
    ```
 3. Write `save_records(records, filename)`:
    - Accepts a list of record dicts
-   - Writes each record as a CSV line to `household_records.txt`
+   - Writes each record as a CSV line to `household_records.csv`
 4. Write `load_records(filename)`:
-   - Reads `household_records.txt`
+   - Reads `household_records.csv`
    - Returns a list of record dicts
    - Skips corrupted/incomplete lines silently
-5. Write `get_rooms()` — returns list of available room names
-6. Write `get_appliances(room)` — returns list of appliances for a given room
-7. Write `get_wattage(room, appliance)` — returns the wattage integer
+5. Write `get_rooms()` â€” returns list of available room names
+6. Write `get_appliances(room)` â€” returns list of appliances for a given room
+7. Write `get_wattage(room, appliance)` â€” returns the wattage integer
 
 ### Deliverables
-- `data_layer.py` — contains all of the above (to be merged into `wattzup.py`)
-- A sample `household_records.txt` with at least 5 dummy records (for testing)
+- `data_layer.py` â€” contains all of the above (to be merged into `wattzup.py`)
+- A sample `household_records.csv` with at least 5 dummy records (for testing)
 - A short comment block at the top of your file explaining the data structure
 
 ### Dependencies
-- **Depends on:** Nothing — you can start immediately
+- **Depends on:** Nothing â€” you can start immediately
 - **Blocks:** No one is blocked by you; others use stub data until you're done
 
 ### Notes
@@ -77,15 +77,15 @@ You are responsible for the **foundation data** of the entire system. This inclu
       "monthly_cost": 576.0
   }
   ```
-- Do NOT write print statements inside your functions — return values instead. Let other members handle display.
+- Do NOT write print statements inside your functions â€” return values instead. Let other members handle display.
 
 ---
 
-## Part 2 — Computation Engine: Cost Calculation & Rankings
+## Part 2 â€” Computation Engine: Cost Calculation & Rankings
 **Owner: Member 2**
 
 ### What You Own
-You are responsible for all **math and analysis logic** — the brain of the system. You compute costs, rank rooms, rank appliances, and summarize totals.
+You are responsible for all **math and analysis logic** â€” the brain of the system. You compute costs, rank rooms, rank appliances, and summarize totals.
 
 ### Specific Tasks
 1. Write `compute_cost(wattage, hours_per_day, rate=12.0)`:
@@ -109,7 +109,7 @@ You are responsible for all **math and analysis logic** — the brain of the sys
    - Returns `"No budget set"` if budget is `None`
 
 ### Deliverables
-- `computation.py` — contains all of the above (to be merged into `wattzup.py`)
+- `computation.py` â€” contains all of the above (to be merged into `wattzup.py`)
 - Use the shared stub record list below for development:
   ```python
   STUB_RECORDS = [
@@ -119,28 +119,28 @@ You are responsible for all **math and analysis logic** — the brain of the sys
   ```
 
 ### Dependencies
-- **Depends on:** Shared data contract only — you can start immediately with stubs
-- **Blocks:** Member 3 (visualization) and Member 4 (dashboard display) need your functions — but both can mock them during development
+- **Depends on:** Shared data contract only â€” you can start immediately with stubs
+- **Blocks:** Member 3 (visualization) and Member 4 (dashboard display) need your functions â€” but both can mock them during development
 
 ### Notes
 - All functions must **return values**, not print them.
 - Use `round(value, 2)` for all cost outputs.
-- Default rate is `₱12.00/kWh` — make it a parameter with a default value so it can be changed.
+- Default rate is `â‚±12.00/kWh` â€” make it a parameter with a default value so it can be changed.
 
 ---
 
-## Part 3 — User Interface: Menus, Display & Navigation
+## Part 3 â€” User Interface: Menus, Display & Navigation
 **Owner: Member 3**
 
 ### What You Own
-You are responsible for **everything the user sees and interacts with** — menus, prompts, formatted output, and the dashboard display. You are the face of the system.
+You are responsible for **everything the user sees and interacts with** â€” menus, prompts, formatted output, and the dashboard display. You are the face of the system.
 
 ### Specific Tasks
 1. Write `display_dashboard(records, budget)`:
    - Shows the main dashboard header
    - Shows estimated monthly cost
    - Shows budget status
-   - Lists the main menu options `[1]–[6]` and `[0] Exit`
+   - Lists the main menu options `[1]â€“[6]` and `[0] Exit`
 2. Write `display_room_menu(rooms)`:
    - Shows numbered list of rooms
    - Returns the user's valid selection (room name string)
@@ -159,26 +159,26 @@ You are responsible for **everything the user sees and interacts with** — menu
    - Returns the float value
 
 ### Deliverables
-- `ui.py` — contains all of the above (to be merged into `wattzup.py`)
+- `ui.py` â€” contains all of the above (to be merged into `wattzup.py`)
 
 ### Dependencies
-- **Depends on:** Shared data contract only — you can start immediately with stub data
+- **Depends on:** Shared data contract only â€” you can start immediately with stub data
 - **Blocks:** Member 4 (main loop) needs your display functions, but Member 4 can use placeholder `print()` calls until you're ready
 
 ### Notes
-- You do NOT handle the main `while True` loop — that's Member 4's job.
-- You do NOT do math — that's Member 2's job.
-- You do NOT read/write files — that's Member 1's job.
+- You do NOT handle the main `while True` loop â€” that's Member 4's job.
+- You do NOT do math â€” that's Member 2's job.
+- You do NOT read/write files â€” that's Member 1's job.
 - Every display function should be **callable independently** for easy testing.
-- Format monetary values as: `₱{value:,.2f}` (e.g., `₱4,320.00`)
+- Format monetary values as: `â‚±{value:,.2f}` (e.g., `â‚±4,320.00`)
 
 ### Sample Display Format to Follow
 ```
 =========================================
-         WATTZUP — DASHBOARD
+         WATTZUP â€” DASHBOARD
 =========================================
-  Estimated Monthly Cost : ₱5,476.00
-  Budget Status          : OVER BUDGET ✗
+  Estimated Monthly Cost : â‚±5,476.00
+  Budget Status          : OVER BUDGET âœ—
 
   [1] Manage Household
   [2] View Appliance Usage Ranking
@@ -192,7 +192,7 @@ You are responsible for **everything the user sees and interacts with** — menu
 
 ---
 
-## Part 4 — Main Loop, Error Handling & Integration
+## Part 4 â€” Main Loop, Error Handling & Integration
 **Owner: Member 4**
 
 ### What You Own
@@ -211,27 +211,27 @@ You are the **integrator and quality gatekeeper**. You write the main program lo
    - Handle empty records list gracefully (show "No records yet" messages)
    - Validate all menu selections are within valid range
 3. Write the **"add appliance" flow** connecting all modules:
-   - Get room → get appliance → get usage level → compute cost → append to records list
-4. Write `clear_records()` — resets the records list (with confirmation prompt)
-5. Write the **auto-save prompt on exit** — ask user if they want to save before quitting
+   - Get room â†’ get appliance â†’ get usage level â†’ compute cost â†’ append to records list
+4. Write `clear_records()` â€” resets the records list (with confirmation prompt)
+5. Write the **auto-save prompt on exit** â€” ask user if they want to save before quitting
 6. Assemble the **final `wattzup.py`** by merging all modules into one file
 7. Prepare the **documentation file** (`documentation.txt`) for submission
 
 ### Deliverables
-- `main_loop.py` — your portion before final merge (to be merged into `wattzup.py`)
-- Final merged `wattzup.py` — the complete, single-file submission
-- `documentation.txt` — the project documentation
+- `main_loop.py` â€” your portion before final merge (to be merged into `wattzup.py`)
+- Final merged `wattzup.py` â€” the complete, single-file submission
+- `documentation.txt` â€” the project documentation
 - A quick **integration checklist** (see below)
 
 ### Dependencies
 - **Depends on:** All other members' functions for final assembly
 - **Early work:** You can stub all function calls (`compute_cost = lambda *a: {"kwh": 0, "monthly_cost": 0}`) and develop the loop skeleton immediately
-- **Blocks:** Final submission — you produce the final file
+- **Blocks:** Final submission â€” you produce the final file
 
 ### Integration Checklist (use before final submission)
 ```
 [ ] APPLIANCE_LIBRARY covers all 5 rooms and all appliances
-[ ] save_records() writes correctly to household_records.txt
+[ ] save_records() writes correctly to household_records.csv
 [ ] load_records() reads back correctly and skips bad lines
 [ ] compute_cost() returns correct values for all 3 usage levels
 [ ] rank_by_room() and rank_by_appliance() return sorted results
@@ -240,26 +240,26 @@ You are the **integrator and quality gatekeeper**. You write the main program lo
 [ ] All menus reject invalid input without crashing
 [ ] Budget comparison shows correctly when budget is and isn't set
 [ ] Program exits cleanly with save prompt
-[ ] household_records.txt sample file included in submission
+[ ] household_records.csv sample file included in submission
 [ ] documentation.txt is complete
 ```
 
 ### Error Handling Map (your responsibility)
 | Scenario | How to Handle |
 |---|---|
-| Non-numeric menu input | `try/except ValueError` — re-prompt |
-| Out-of-range menu choice | `if choice not in valid_range` — re-prompt |
-| `household_records.txt` not found | `except FileNotFoundError` — print notice, continue |
-| Corrupted line in file | `try/except` per line in `load_records()` — skip and warn |
-| No appliances added yet | Check `if not records` — display empty state message |
-| Budget not set | Pass `None` as budget — Member 2's `check_budget()` handles it |
+| Non-numeric menu input | `try/except ValueError` â€” re-prompt |
+| Out-of-range menu choice | `if choice not in valid_range` â€” re-prompt |
+| `household_records.csv` not found | `except FileNotFoundError` â€” print notice, continue |
+| Corrupted line in file | `try/except` per line in `load_records()` â€” skip and warn |
+| No appliances added yet | Check `if not records` â€” display empty state message |
+| Budget not set | Pass `None` as budget â€” Member 2's `check_budget()` handles it |
 
 ---
 
 ## Minimal Blocking Dependency Map
 
 ```
-Day 1 ──────────────────────────────────────────────────────────────────
+Day 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
          Member 1: Define APPLIANCE_LIBRARY, USAGE_LEVELS, stubs
          Member 2: Write compute/ranking functions (use stub records)
          Member 3: Write all display/menu functions (use stub data)
@@ -276,13 +276,13 @@ Checkpoint B (near deadline): full dry run
          Member 4: Run through integration checklist
          All: Test together, fix any issues
 
-Final ───────────────────────────────────────────────────────────────────
-         Member 4 submits: wattzup.py, household_records.txt, documentation.txt, slides
+Final â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+         Member 4 submits: wattzup.py, household_records.csv, documentation.txt, slides
 ```
 
 ---
 
-## Appendix — Shared Data Contract
+## Appendix â€” Shared Data Contract
 
 All members must use this exact structure for record dicts:
 
@@ -298,7 +298,7 @@ record = {
 }
 ```
 
-File format for `household_records.txt` (CSV, one appliance per line):
+File format for `household_records.csv` (CSV, one appliance per line):
 ```
 room,appliance,wattage,usage_level,hours_per_day,kwh,monthly_cost
 Kitchen,Rice Cooker,400,Moderate,4,48.0,576.0
@@ -328,3 +328,4 @@ Function name contract (do NOT rename these):
 | `prompt_budget()` | Member 3 | float |
 | `main()` | Member 4 | None |
 | `clear_records()` | Member 4 | list (empty) |
+

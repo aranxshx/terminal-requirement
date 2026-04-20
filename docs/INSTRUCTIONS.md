@@ -1,5 +1,5 @@
-# WattzUp: Electricity Consumption Monitoring System
-### Programming Languages — Terminal Requirement | Sunfall Studios
+﻿# WattzUp: Electricity Consumption Monitoring System
+### Programming Languages â€” Terminal Requirement | Sunfall Studios
 
 ---
 
@@ -45,7 +45,7 @@ The user acts as the **manager of a household** and can:
 ### Main Dashboard
 ```
 =========================================
-       WATTZUP — DASHBOARD
+       WATTZUP â€” DASHBOARD
 =========================================
   Estimated Monthly Cost: P[cost]
   Budget Status: [Under / Over Budget]
@@ -105,9 +105,9 @@ Each room has a fixed set of appliances with predefined wattage values:
 ### Usage Level Input
 ```
 HOW OFTEN DO YOU USE THIS APPLIANCE?
-  [1] Heavy   — 8+ hours/day
-  [2] Moderate — 2 to 8 hours/day
-  [3] Eco      — Less than 2 hours/day
+  [1] Heavy   â€” 8+ hours/day
+  [2] Moderate â€” 2 to 8 hours/day
+  [3] Eco      â€” Less than 2 hours/day
 ```
 
 Usage hours used for calculation:
@@ -121,16 +121,16 @@ Usage hours used for calculation:
 
 ### Formula
 ```
-kWh per month = (Wattage × Hours per Day × 30) / 1000
-Cost per appliance = kWh × PHP rate per kWh
+kWh per month = (Wattage Ã— Hours per Day Ã— 30) / 1000
+Cost per appliance = kWh Ã— PHP rate per kWh
 ```
 
-> Use a **configurable rate** (default: **₱12.00 per kWh**, based on Meralco average).
+> Use a **configurable rate** (default: **â‚±12.00 per kWh**, based on Meralco average).
 
 ### Monthly Cost Summary
 - Sum all appliance costs across all rooms
 - Compare against user-set budget
-- Display `UNDER BUDGET ✓` or `OVER BUDGET ✗`
+- Display `UNDER BUDGET âœ“` or `OVER BUDGET âœ—`
 
 ---
 
@@ -140,7 +140,7 @@ Cost per appliance = kWh × PHP rate per kWh
 Records must be saved to a plain text or CSV file named:
 
 ```
-household_records.txt
+household_records.csv
 ```
 
 Each line represents one appliance record:
@@ -150,7 +150,7 @@ Kitchen,Rice Cooker,400,Moderate,4,48.0,576.0
 ```
 
 ### Load Behavior
-- On startup, the program checks if `household_records.txt` exists
+- On startup, the program checks if `household_records.csv` exists
 - If found, it prompts the user to load previous records
 - If not found, it starts fresh
 
@@ -166,7 +166,7 @@ Kitchen,Rice Cooker,400,Moderate,4,48.0,576.0
 | Loops              | `while` for menus, `for` to iterate over appliances/rooms  |
 | Functions          | `compute_cost()`, `display_dashboard()`, `save_records()`, `load_records()`, etc. |
 | List Handling      | Storing appliance records, room rankings                   |
-| File Handling      | Save/load using `household_records.txt`                    |
+| File Handling      | Save/load using `household_records.csv`                    |
 | Error Handling     | Invalid menu input, missing file, non-numeric entries      |
 
 ---
@@ -189,9 +189,9 @@ Handle these cases gracefully without crashing:
 ## Expected Submission
 
 Each group must submit:
-- `wattzup.py` — Main Python source code
-- `household_records.txt` — Sample saved records file
-- `documentation.txt` — Short documentation (see below)
+- `main.py` â€” Main Python entry point
+- `household_records.csv` â€” Sample saved records file
+- `documentation.txt` â€” Short documentation (see below)
 - Slides presentation file
 
 ---
@@ -200,15 +200,15 @@ Each group must submit:
 
 Include the following sections:
 
-1. **Project Title** — WattzUp: Electricity Consumption Monitoring System
-2. **Group Members** — Names of all 4 members
-3. **Brief Description** — What the system does
-4. **Objectives** — Goals of the project
-5. **Features and Functionalities** — List of main features
-6. **Programming Concepts Applied** — How each required concept was used
-7. **File Handling Explanation** — How `household_records.txt` is used
-8. **Error Handling Explanation** — What errors are caught and how
-9. **How to Run** — Step-by-step instructions to execute the program
+1. **Project Title** â€” WattzUp: Electricity Consumption Monitoring System
+2. **Group Members** â€” Names of all 4 members
+3. **Brief Description** â€” What the system does
+4. **Objectives** â€” Goals of the project
+5. **Features and Functionalities** â€” List of main features
+6. **Programming Concepts Applied** â€” How each required concept was used
+7. **File Handling Explanation** â€” How `household_records.csv` is used
+8. **Error Handling Explanation** â€” What errors are caught and how
+9. **How to Run** â€” Step-by-step instructions to execute the program
 
 ---
 
@@ -230,10 +230,10 @@ Include the following sections:
 ## How to Run
 
 ```bash
-python wattzup.py
+python main.py
 ```
 
-> Requires Python 3.x. No external libraries needed — uses only Python built-ins.
+> Requires Python 3.x. No external libraries needed â€” uses only Python built-ins.
 
 ---
 
@@ -242,3 +242,4 @@ python wattzup.py
 - Only the group leader needs to submit on Canvas.
 - The project must be original and made specifically for this course.
 - Plagiarism is strictly prohibited.
+
