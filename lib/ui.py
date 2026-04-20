@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from collections.abc import Callable
 
 import customtkinter as ctk
@@ -61,6 +62,21 @@ RECORD_SORT_OPTIONS = (
     "Cost (High-Low)",
 )
 
+INSIGHT_FOCUS_OPTIONS = (
+    "All",
+    "Budget",
+    "Cost Drivers",
+    "Usage",
+)
+
+
+@dataclass(slots=True)
+class DashboardInsight:
+    icon: str
+    title: str
+    message: str
+    category: str
+
 
 class WattzUpVisual(ctk.CTk):
     """CustomTkinter desktop application for WattzUp."""
@@ -98,6 +114,8 @@ class WattzUpVisual(ctk.CTk):
             "Dining Area": "\U000F0A70",
         }
         self._nav_icon_glyphs = {
+            "dashboard": "\U000F0E4E",
+            "management": "\U000F02DC",
             "save": "\U000F0193",
             "budget": "\U000F0114",
             "logout": "\U000F0343",
@@ -156,6 +174,8 @@ class WattzUpVisual(ctk.CTk):
         self._records_sort_var: ctk.StringVar | None = None
         self._records_room_filter_widget: ctk.CTkComboBox | None = None
         self._records_table_container: ctk.CTkScrollableFrame | None = None
+        self._insights_focus_var: ctk.StringVar | None = None
+        self._insights_container: ctk.CTkScrollableFrame | None = None
         self._overview_cost_card: ctk.CTkFrame | None = None
         self._overview_budget_card: ctk.CTkFrame | None = None
         self._overview_rankings_card: ctk.CTkFrame | None = None
@@ -324,14 +344,14 @@ class WattzUpVisual(ctk.CTk):
             sidebar,
             "Dashboard",
             lambda: self._set_active_page("dashboard"),
-            icon=self._nav_icon_images.get("save"),
+            icon=self._nav_icon_images.get("dashboard"),
         )
         self._dashboard_nav_button.grid(row=2, column=0, padx=14, pady=(0, 8), sticky="ew")
         self._management_nav_button = self._make_secondary_button(
             sidebar,
             "Management",
             lambda: self._set_active_page("management"),
-            icon=self._nav_icon_images.get("budget"),
+            icon=self._nav_icon_images.get("management"),
         )
         self._management_nav_button.grid(row=3, column=0, padx=14, pady=(0, 4), sticky="ew")
 
@@ -400,20 +420,47 @@ class WattzUpVisual(ctk.CTk):
         lower.grid_rowconfigure(1, weight=1)
 
         self._build_dashboard_visuals_card(lower)
-
-        insights_card = self._make_card(lower)
-        insights_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 8))
-        ctk.CTkLabel(insights_card, text="Insights", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
-            anchor="w", padx=14, pady=(12, 6)
-        )
-        ctk.CTkLabel(
-            insights_card,
-            text="Actionable insights will appear here.",
-            font=FONT_BODY,
-            text_color=TEXT_SECONDARY,
-        ).pack(anchor="w", padx=14, pady=(0, 12))
+        self._build_dashboard_insights(lower)
 
         self._build_dashboard_records_table(lower)
+
+    def _build_dashboard_insights(self, parent: ctk.CTkFrame) -> None:
+        insights_card = self._make_card(parent)
+        insights_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 8))
+        insights_card.grid_columnconfigure(0, weight=1)
+        insights_card.grid_rowconfigure(1, weight=1)
+
+        header = ctk.CTkFrame(insights_card, fg_color="transparent")
+        header.grid(row=0, column=0, padx=14, pady=(12, 8), sticky="ew")
+        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(header, text="Insights", font=FONT_HEADING, text_color=TEXT_PRIMARY).grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
+
+        self._insights_focus_var = ctk.StringVar(value="All")
+        focus_selector = ctk.CTkComboBox(
+            header,
+            values=list(INSIGHT_FOCUS_OPTIONS),
+            variable=self._insights_focus_var,
+            command=lambda _: self._refresh_insights(),
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
+            button_color=ACCENT_MUTED,
+            button_hover_color=ACCENT_HOVER,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            width=140,
+        )
+        focus_selector.grid(row=0, column=1, sticky="e")
+        self._bind_field_focus_border(focus_selector)
+
+        self._insights_container = ctk.CTkScrollableFrame(insights_card, fg_color=BG_SURFACE)
+        self._insights_container.grid(row=1, column=0, padx=12, pady=(0, 12), sticky="nsew")
 
     def _build_dashboard_visuals_card(self, parent: ctk.CTkFrame) -> None:
         visuals_card = self._make_card(parent)
@@ -440,6 +487,7 @@ class WattzUpVisual(ctk.CTk):
         if Figure is not None and FigureCanvasTkAgg is not None:
             self._donut_figure = Figure(figsize=(4.0, 3.0), dpi=100)
             self._donut_figure.patch.set_facecolor(BG_SURFACE)
+            self._donut_figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
             self._donut_axis = self._donut_figure.add_subplot(111)
             self._donut_axis.set_facecolor(BG_SURFACE)
             self._donut_canvas = FigureCanvasTkAgg(self._donut_figure, master=self._visuals_chart_host)
@@ -1089,6 +1137,7 @@ class WattzUpVisual(ctk.CTk):
         self._refresh_left_sidebar()
         self._refresh_page_visibility()
         self._refresh_metrics()
+        self._refresh_insights()
         self._refresh_room_cost_chart()
         self._refresh_dashboard_records_table()
         self._refresh_dashboard_rankings()
@@ -1270,6 +1319,236 @@ class WattzUpVisual(ctk.CTk):
             if idx < total:
                 self._pack_subtle_divider(self._ranking_container)
 
+    def _refresh_insights(self) -> None:
+        self._clear_container(self._insights_container)
+        if self._insights_container is None:
+            return
+
+        insights = self._compute_insights()
+        focus = self._insights_focus_var.get() if self._insights_focus_var is not None else "All"
+        if focus != "All":
+            insights = [item for item in insights if item.category == focus]
+
+        if not insights:
+            ctk.CTkLabel(
+                self._insights_container,
+                text="No insights for this focus yet.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+                justify="left",
+            ).pack(anchor="w", padx=8, pady=8)
+            return
+
+        total = len(insights)
+        for idx, insight in enumerate(insights, start=1):
+            row = ctk.CTkFrame(
+                self._insights_container,
+                fg_color=BG_ELEVATED,
+                corner_radius=8,
+                border_width=1,
+                border_color=BORDER_DEFAULT,
+            )
+            row.pack(fill="x", padx=4, pady=4)
+            row.grid_columnconfigure(1, weight=1)
+
+            badge = ctk.CTkFrame(row, fg_color=ACCENT_MUTED, width=32, height=32, corner_radius=8)
+            badge.grid(row=0, column=0, rowspan=2, padx=(8, 10), pady=8, sticky="n")
+            badge.grid_propagate(False)
+            ctk.CTkLabel(
+                badge,
+                text=insight.icon,
+                font=FONT_BODY,
+                text_color=TEXT_PRIMARY,
+            ).pack(expand=True)
+
+            ctk.CTkLabel(
+                row,
+                text=insight.title,
+                font=FONT_CAPTION,
+                text_color=TEXT_PRIMARY,
+            ).grid(row=0, column=1, padx=(0, 8), pady=(8, 2), sticky="w")
+            ctk.CTkLabel(
+                row,
+                text=insight.message,
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+                justify="left",
+                wraplength=320,
+            ).grid(row=1, column=1, padx=(0, 8), pady=(0, 8), sticky="w")
+
+            if idx < total:
+                self._pack_subtle_divider(self._insights_container, padx=(4, 4), pady=(2, 2))
+
+    def _compute_insights(self) -> list[DashboardInsight]:
+        records = self._app.records
+        total_cost = self._app.total_cost()
+        insights: list[DashboardInsight] = []
+
+        if not records:
+            insights.append(
+                DashboardInsight(
+                    icon="I",
+                    title="No Data Yet",
+                    message="Add appliances from Management to generate personalized energy insights.",
+                    category="Cost Drivers",
+                )
+            )
+            if self._app.budget is None:
+                insights.append(
+                    DashboardInsight(
+                        icon="B",
+                        title="Set A Monthly Budget",
+                        message="Set a budget to monitor spending and get over/under-budget alerts.",
+                        category="Budget",
+                    )
+                )
+            else:
+                insights.append(
+                    DashboardInsight(
+                        icon="B",
+                        title="Budget Ready",
+                        message=f"Budget is set at P{self._app.budget:,.2f}. Add records to track progress.",
+                        category="Budget",
+                    )
+                )
+            return insights
+
+        if len(records) <= 2:
+            insights.append(
+                DashboardInsight(
+                    icon="D",
+                    title="More Data Improves Accuracy",
+                    message="Add a few more appliances to sharpen ranking and budget recommendations.",
+                    category="Cost Drivers",
+                )
+            )
+
+        ranked_rooms = [(room, cost) for room, cost in self._app.ranked_rooms() if cost > 0]
+        if ranked_rooms and total_cost > 0:
+            top_room, top_room_cost = ranked_rooms[0]
+            top_room_name = top_room.strip() if top_room and top_room.strip() else "Unknown room"
+            top_room_share = (top_room_cost / total_cost) * 100
+            insights.append(
+                DashboardInsight(
+                    icon="R",
+                    title="Highest-Cost Room",
+                    message=f"{top_room_name} leads at P{top_room_cost:,.2f} ({top_room_share:.1f}% of total).",
+                    category="Cost Drivers",
+                )
+            )
+
+        ranked_appliances = [record for record in self._app.ranked_appliances() if record.monthly_cost > 0]
+        if ranked_appliances:
+            top_appliance = ranked_appliances[0]
+            appliance_name = top_appliance.appliance.strip() if top_appliance.appliance.strip() else "Unknown appliance"
+            appliance_room = top_appliance.room.strip() if top_appliance.room.strip() else "Unknown room"
+            insights.append(
+                DashboardInsight(
+                    icon="A",
+                    title="Top Appliance Cost Driver",
+                    message=f"{appliance_name} in {appliance_room} costs P{top_appliance.monthly_cost:,.2f} monthly.",
+                    category="Cost Drivers",
+                )
+            )
+
+        insights.extend(self._compute_budget_insights(total_cost, ranked_rooms, ranked_appliances))
+        insights.append(self._compute_usage_pattern_insight(records, total_cost))
+        return insights
+
+    def _compute_budget_insights(
+        self,
+        total_cost: float,
+        ranked_rooms: list[tuple[str, float]],
+        ranked_appliances: list[ApplianceRecord],
+    ) -> list[DashboardInsight]:
+        budget = self._app.budget
+        if budget is None:
+            return [
+                DashboardInsight(
+                    icon="B",
+                    title="Budget Not Set",
+                    message="Set a budget to unlock spending guidance and risk alerts.",
+                    category="Budget",
+                )
+            ]
+
+        if total_cost <= budget:
+            remaining = budget - total_cost
+            return [
+                DashboardInsight(
+                    icon="B",
+                    title="Under Budget",
+                    message=f"You are under budget by P{remaining:,.2f} this month.",
+                    category="Budget",
+                )
+            ]
+
+        exceeded = total_cost - budget
+        room_hint = ""
+        if ranked_rooms:
+            room_name, room_cost = ranked_rooms[0]
+            clean_room_name = room_name.strip() if room_name and room_name.strip() else "Unknown room"
+            room_hint = f" Room driver: {clean_room_name} (P{room_cost:,.2f})."
+
+        appliance_hint = ""
+        if ranked_appliances:
+            top_appliance = ranked_appliances[0]
+            appliance_name = top_appliance.appliance.strip() if top_appliance.appliance.strip() else "Unknown appliance"
+            appliance_room = top_appliance.room.strip() if top_appliance.room.strip() else "Unknown room"
+            appliance_hint = (
+                f" Appliance driver: {appliance_name} in {appliance_room} "
+                f"(P{top_appliance.monthly_cost:,.2f})."
+            )
+
+        return [
+            DashboardInsight(
+                icon="!",
+                title="Over Budget",
+                message=f"You exceeded budget by P{exceeded:,.2f}.{room_hint}{appliance_hint}",
+                category="Budget",
+            )
+        ]
+
+    def _compute_usage_pattern_insight(self, records: list[ApplianceRecord], total_cost: float) -> DashboardInsight:
+        usage_counts = {"Heavy": 0, "Moderate": 0, "Eco": 0, "Custom": 0}
+        usage_costs = {"Heavy": 0.0, "Moderate": 0.0, "Eco": 0.0, "Custom": 0.0}
+
+        for record in records:
+            normalized_usage = self._normalize_usage_level(record.usage_level)
+            usage_counts[normalized_usage] += 1
+            usage_costs[normalized_usage] += record.monthly_cost
+
+        top_usage = max(usage_costs.items(), key=lambda item: item[1])[0]
+        top_usage_cost = usage_costs[top_usage]
+        top_usage_share = (top_usage_cost / total_cost * 100) if total_cost > 0 else 0.0
+        usage_summary = ", ".join(
+            f"{usage}: {usage_counts[usage]}"
+            for usage in ("Heavy", "Moderate", "Eco", "Custom")
+            if usage_counts[usage] > 0
+        )
+        if not usage_summary:
+            usage_summary = "No usage patterns yet"
+
+        return DashboardInsight(
+            icon="U",
+            title="Usage Pattern",
+            message=(
+                f"{top_usage} usage drives P{top_usage_cost:,.2f} ({top_usage_share:.1f}%). "
+                f"Counts: {usage_summary}."
+            ),
+            category="Usage",
+        )
+
+    @staticmethod
+    def _normalize_usage_level(usage_level: str) -> str:
+        if usage_level.startswith("Heavy"):
+            return "Heavy"
+        if usage_level.startswith("Moderate"):
+            return "Moderate"
+        if usage_level.startswith("Eco"):
+            return "Eco"
+        return "Custom"
+
     def _refresh_room_cost_chart(self) -> None:
         if self._visuals_chart_host is None or self._visuals_legend_container is None:
             return
@@ -1300,6 +1579,8 @@ class WattzUpVisual(ctk.CTk):
         if self._donut_axis is not None and self._donut_canvas is not None:
             self._donut_axis.clear()
             self._donut_axis.set_facecolor(BG_SURFACE)
+            if self._donut_figure is not None:
+                self._donut_figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
             self._donut_axis.axis("off")
             self._donut_axis.text(
                 0.5,
@@ -1350,11 +1631,14 @@ class WattzUpVisual(ctk.CTk):
 
             self._donut_axis.clear()
             self._donut_axis.set_facecolor(BG_SURFACE)
+            if self._donut_figure is not None:
+                self._donut_figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
             self._donut_axis.pie(
                 values,
                 labels=None,
                 startangle=90,
                 colors=colors,
+                radius=1.15,
                 wedgeprops={"width": 0.42, "edgecolor": BG_SURFACE, "linewidth": 1.6},
             )
             self._donut_axis.text(

@@ -11,7 +11,7 @@ WattzUp: Electricity Consumption Monitoring System
 
 # Brief Description
 
-WattzUp is a Python electricity-consumption monitoring application built with an object-oriented architecture. It supports a GUI-first user experience with an optional CLI mode, lets users create or continue per-user sessions, add appliance usage entries by room, estimate monthly electricity cost, view appliance and room rankings, and manage saved records.
+WattzUp is a Python electricity-consumption monitoring application built with an object-oriented architecture. It supports a GUI-first user experience with an optional CLI mode, lets users create or continue per-user sessions, add appliance usage entries by room, estimate monthly electricity cost, view appliance and room rankings, visualize room cost share, review full records with search/filter/sort controls, and manage saved records.
 
 ## Context
 
@@ -33,6 +33,7 @@ The project now runs on a shared object-oriented backend used by both GUI and CL
   - `lib/models.py`: shared data model (`ApplianceRecord`) used across layers.
   - `lib/catalog.py` + `util/config.py`: appliance metadata, usage presets, and constants.
   - `lib/ui.py` and `lib/cli_app.py`: interface layers that call the same backend services.
+  - Dashboard in `lib/ui.py` includes room donut visualization, actionable insights, and a full records table.
 - Data and persistence:
   - Per-user files are stored in `data/` as `<username>_household_records.csv`.
   - Rows are stored in CSV format with typed fields.
@@ -45,6 +46,7 @@ The project now runs on a shared object-oriented backend used by both GUI and CL
 - Dependencies:
   - CLI mode uses Python standard library.
   - GUI mode requires `customtkinter` and `Pillow`.
+  - Dashboard donut rendering uses `matplotlib` with a built-in textual fallback if unavailable.
   - If GUI dependencies are missing, launcher falls back to CLI.
 
 # Objectives of the Project
@@ -66,8 +68,11 @@ The project now runs on a shared object-oriented backend used by both GUI and CL
 7. Immediate save whenever a new appliance entry is added.
 8. Appliance usage ranking based on monthly cost.
 9. Room usage ranking based on monthly cost.
-10. Monthly budget input and budget status display.
-11. Manual save/load and autosave prompt on exit.
+10. Dashboard donut chart for room cost share with legend and total cost center label.
+11. Dashboard insights module with focus filter (`All`, `Budget`, `Cost Drivers`, `Usage`).
+12. Dashboard records table with search, room filter, sort controls, and empty states.
+13. Monthly budget input and budget status display.
+14. Manual save/load and autosave prompt on exit.
 
 # Programming Concepts Applied
 
@@ -96,4 +101,5 @@ The repository layer writes records as CSV with headers and reads them back as t
 3. If GUI dependencies are not available, run `python main.py --cli` for terminal mode.
 4. At startup, create a new user or continue an existing user.
 5. Use the dashboard/menu to add appliances, check rankings, set budget, save, load, and exit.
+6. On Dashboard, review donut chart, insight cards, and records table controls.
 

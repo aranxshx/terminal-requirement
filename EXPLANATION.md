@@ -192,19 +192,29 @@ Legacy `ui.py` display/menu responsibilities now map to:
   - Budget prompt and validation loop.
 - `WattzUpVisual.__init__()`
   - Builds GUI frame layout, starts login flow.
-- `WattzUpVisual._login_user()`
-  - User session choice via dialogs.
+- `WattzUpVisual._startup_session_modal()`
+  - User session choice via startup modal dialogs.
 - `WattzUpVisual._add_entry(...)`
   - Adds record from selected room/appliance/usage.
-- `WattzUpVisual._show_map()`
-  - Dashboard summary and room hotspots.
+- `WattzUpVisual._build_dashboard_visuals_card(...)`
+  - Builds room cost share card (donut chart or textual fallback).
+- `WattzUpVisual._build_dashboard_insights(...)`
+  - Builds insight list area with optional focus selector.
+- `WattzUpVisual._build_dashboard_records_table(...)`
+  - Builds full records table with search/filter/sort controls.
+- `WattzUpVisual._refresh_room_cost_chart()`
+  - Refreshes room donut visualization from current records.
+- `WattzUpVisual._refresh_insights()`
+  - Refreshes actionable insight cards from live session data.
+- `WattzUpVisual._refresh_dashboard_records_table()`
+  - Refreshes records table rows based on controls and current data.
 - `WattzUpVisual._save_data()` / `_on_window_close()`
   - Save and exit behaviors.
 
 ### Typical call flow
 1. UI collects user choices.
 2. UI calls `WattzUpApplicationService` methods.
-3. UI displays resulting totals/rankings/status.
+3. UI displays resulting totals/rankings/status/insights.
 4. UI handles recoverable errors without crashing.
 
 ### Error handling in your task
@@ -215,11 +225,13 @@ Legacy `ui.py` display/menu responsibilities now map to:
 ### Common mistakes and quick checks
 - Mistake: putting business logic directly in UI methods.
 - Mistake: mutating `records` directly instead of using app service.
+- Mistake: updating dashboard widgets directly without routing through `_refresh_all()`.
 - Check: test new-user and continue-user paths separately.
+- Check: test dashboard donut, insights, and records table after add/edit/delete.
 - Check: test cancel/close actions in dialogs.
 
 ### 60-90 second recitation script
-I handle the UI layer. The CLI is in `lib/cli_app.py` and the GUI is in `lib/ui.py`. Both interfaces collect input, call the same app service, and display results. This keeps behavior consistent across interfaces. The UI layer focuses on prompts, navigation, and feedback, while computation and persistence stay in backend modules.
+I handle the UI layer. The CLI is in `lib/cli_app.py` and the GUI is in `lib/ui.py`. Both interfaces collect input, call the same app service, and display results. The current GUI dashboard includes room cost visualization, actionable insights, and a searchable records table, while the management page handles map-based appliance operations. This keeps behavior consistent across interfaces while computation and persistence stay in backend modules.
 
 ---
 
@@ -305,6 +317,9 @@ I handle integration and reliability. `main.py` is the single gateway and contro
 ### UI checks
 - Confirm CLI re-prompts on invalid input.
 - Confirm GUI shows dialogs for invalid actions and save prompts.
+- Confirm dashboard donut chart updates after add/edit/delete/session switch.
+- Confirm dashboard insights update for no-budget, under-budget, and over-budget states.
+- Confirm records table search/filter/sort combination works with empty results state.
 
 ### Integration checks
 - Confirm CLI fallback if GUI deps are unavailable.

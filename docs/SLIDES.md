@@ -18,6 +18,7 @@
 - Tracks household appliance electricity usage
 - Computes monthly kWh consumption and estimated cost
 - Supports multiple users with separate record files
+- Includes dashboard analytics (room donut, insights, full records table)
 - GUI-first; CLI available as fallback
 - No external APIs or smart-meter hardware required
 
@@ -55,9 +56,9 @@
 - Create or continue a per-user session at startup
 - Add appliance entries by room with wattage and usage level
 - Automatic kWh and monthly cost computation on entry
-- Appliance and room usage rankings by monthly cost
-- Monthly budget input with budget status display
-- Manual save/load and autosave prompt on exit
+- Dashboard donut chart for room cost share and totals
+- Dashboard insights with budget/cost/usage focus filter
+- Full records table with search, filter, and sort controls
 
 ---
 
@@ -93,8 +94,8 @@
 1. Run `python main.py` to launch the GUI
 2. Create a new user or continue an existing one
 3. Add appliances by room, wattage, and usage level
-4. View appliance and room cost rankings
-5. Set a monthly budget and check budget status
+4. Review donut chart, insights, and records table updates
+5. Set a monthly budget and verify insight changes
 6. Save session; autosave prompt shown on exit
 
 ---
@@ -102,7 +103,7 @@
 ## Slide 11 â€” How to Run
 - **GUI (default):** `python main.py`
 - **CLI (fallback):** `python main.py --cli`
-- GUI requires `customtkinter` and `Pillow`; launcher auto-falls back to CLI if missing
+- GUI requires `customtkinter`, `Pillow`, and `matplotlib`
 - Single gateway: `main.py` is the only launcher
 - All data files auto-created in `data/` on first save
 

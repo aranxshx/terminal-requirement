@@ -13,6 +13,8 @@ Repository context:
 - Architecture status: Refactored to mainly object-oriented design.
 - Runtime behavior: GUI is default (`python main.py`), CLI is optional (`python main.py --cli`).
 - Key files include: `main.py`, `lib/ui.py`, `lib/cli_app.py`, `lib/app.py`, `lib/services.py`, `lib/repository.py`, `lib/models.py`, `lib/catalog.py`, and `util/config.py`.
+- Current dashboard modules include room donut visualization, insights cards, and a searchable records table.
+- GUI dependencies include `customtkinter`, `Pillow`, and `matplotlib`.
 
 Your tasks:
 1) Recreate `README.md` with improved voice and tone.

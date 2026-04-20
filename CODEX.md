@@ -124,4 +124,6 @@ Critical requirements:
 ## Notes
 
 - This prompt is designed for your current refactored layout (`main.py`, `lib/`, `util/`).
+- Current GUI dashboard includes room donut visualization, insights cards, and a full records table.
+- GUI runtime expects `customtkinter`, `Pillow`, and `matplotlib`.
 - Re-run this prompt whenever architecture or file layout changes.
