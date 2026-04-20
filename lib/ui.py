@@ -6,7 +6,15 @@ from collections.abc import Callable
 import customtkinter as ctk
 from PIL import Image, ImageDraw, ImageFont
 
+try:
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+except Exception:
+    FigureCanvasTkAgg = None
+    Figure = None
+
 from lib.app import WattzUpApplicationService, create_default_application_service
+from lib.models import ApplianceRecord
 from util.config import (
     ACCENT_HOVER,
     ACCENT_MUTED,
@@ -43,6 +51,15 @@ FONT_MODAL_BRAND = (FONT_FAMILY_DISPLAY, 20, "bold")
 FIELD_BG = BG_ELEVATED
 SIDEBAR_EXPANDED_WIDTH = 236
 SIDEBAR_COLLAPSED_WIDTH = 76
+
+RECORD_SORT_OPTIONS = (
+    "Appliance (A-Z)",
+    "Appliance (Z-A)",
+    "Room (A-Z)",
+    "Room (Z-A)",
+    "Cost (Low-High)",
+    "Cost (High-Low)",
+)
 
 
 class WattzUpVisual(ctk.CTk):
@@ -127,6 +144,18 @@ class WattzUpVisual(ctk.CTk):
         self._ranking_mode_var: ctk.StringVar | None = None
         self._ranking_mode_toggle: ctk.CTkSegmentedButton | None = None
         self._ranking_container: ctk.CTkScrollableFrame | None = None
+        self._visuals_chart_host: ctk.CTkFrame | None = None
+        self._visuals_legend_container: ctk.CTkScrollableFrame | None = None
+        self._visuals_fallback_container: ctk.CTkScrollableFrame | None = None
+        self._visuals_empty_label: ctk.CTkLabel | None = None
+        self._donut_figure: Figure | None = None
+        self._donut_axis = None
+        self._donut_canvas: FigureCanvasTkAgg | None = None
+        self._records_search_var: ctk.StringVar | None = None
+        self._records_room_filter_var: ctk.StringVar | None = None
+        self._records_sort_var: ctk.StringVar | None = None
+        self._records_room_filter_widget: ctk.CTkComboBox | None = None
+        self._records_table_container: ctk.CTkScrollableFrame | None = None
         self._overview_cost_card: ctk.CTkFrame | None = None
         self._overview_budget_card: ctk.CTkFrame | None = None
         self._overview_rankings_card: ctk.CTkFrame | None = None
@@ -370,17 +399,7 @@ class WattzUpVisual(ctk.CTk):
         lower.grid_rowconfigure(0, weight=1)
         lower.grid_rowconfigure(1, weight=1)
 
-        visuals_card = self._make_card(lower)
-        visuals_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 8))
-        ctk.CTkLabel(visuals_card, text="Visualizations", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
-            anchor="w", padx=14, pady=(12, 6)
-        )
-        ctk.CTkLabel(
-            visuals_card,
-            text="Data visualizations coming soon.",
-            font=FONT_BODY,
-            text_color=TEXT_SECONDARY,
-        ).pack(anchor="w", padx=14, pady=(0, 12))
+        self._build_dashboard_visuals_card(lower)
 
         insights_card = self._make_card(lower)
         insights_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 8))
@@ -394,17 +413,132 @@ class WattzUpVisual(ctk.CTk):
             text_color=TEXT_SECONDARY,
         ).pack(anchor="w", padx=14, pady=(0, 12))
 
-        table_card = self._make_card(lower)
-        table_card.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
-        ctk.CTkLabel(table_card, text="Records Table", font=FONT_HEADING, text_color=TEXT_PRIMARY).pack(
-            anchor="w", padx=14, pady=(12, 6)
-        )
+        self._build_dashboard_records_table(lower)
+
+    def _build_dashboard_visuals_card(self, parent: ctk.CTkFrame) -> None:
+        visuals_card = self._make_card(parent)
+        visuals_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 8))
+        visuals_card.grid_columnconfigure(0, weight=2)
+        visuals_card.grid_columnconfigure(1, weight=1)
+        visuals_card.grid_rowconfigure(1, weight=1)
+
         ctk.CTkLabel(
-            table_card,
-            text="Full table with search/filter/sort coming soon.",
-            font=FONT_BODY,
-            text_color=TEXT_SECONDARY,
-        ).pack(anchor="w", padx=14, pady=(0, 12))
+            visuals_card,
+            text="Room Cost Share",
+            font=FONT_HEADING,
+            text_color=TEXT_PRIMARY,
+        ).grid(row=0, column=0, columnspan=2, padx=14, pady=(12, 8), sticky="w")
+
+        self._visuals_chart_host = ctk.CTkFrame(visuals_card, fg_color=BG_SURFACE, corner_radius=8)
+        self._visuals_chart_host.grid(row=1, column=0, padx=(12, 6), pady=(0, 12), sticky="nsew")
+        self._visuals_chart_host.grid_rowconfigure(0, weight=1)
+        self._visuals_chart_host.grid_columnconfigure(0, weight=1)
+
+        self._visuals_legend_container = ctk.CTkScrollableFrame(visuals_card, fg_color=BG_SURFACE)
+        self._visuals_legend_container.grid(row=1, column=1, padx=(6, 12), pady=(0, 12), sticky="nsew")
+
+        if Figure is not None and FigureCanvasTkAgg is not None:
+            self._donut_figure = Figure(figsize=(4.0, 3.0), dpi=100)
+            self._donut_figure.patch.set_facecolor(BG_SURFACE)
+            self._donut_axis = self._donut_figure.add_subplot(111)
+            self._donut_axis.set_facecolor(BG_SURFACE)
+            self._donut_canvas = FigureCanvasTkAgg(self._donut_figure, master=self._visuals_chart_host)
+            self._donut_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+        else:
+            self._visuals_fallback_container = ctk.CTkScrollableFrame(self._visuals_chart_host, fg_color=BG_SURFACE)
+            self._visuals_fallback_container.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
+
+    def _build_dashboard_records_table(self, parent: ctk.CTkFrame) -> None:
+        table_card = self._make_card(parent)
+        table_card.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        table_card.grid_columnconfigure(0, weight=1)
+        table_card.grid_rowconfigure(2, weight=1)
+
+        ctk.CTkLabel(table_card, text="Records Table", font=FONT_HEADING, text_color=TEXT_PRIMARY).grid(
+            row=0,
+            column=0,
+            padx=14,
+            pady=(12, 8),
+            sticky="w",
+        )
+
+        controls = ctk.CTkFrame(table_card, fg_color="transparent")
+        controls.grid(row=1, column=0, padx=14, pady=(0, 8), sticky="ew")
+        controls.grid_columnconfigure(0, weight=1)
+        controls.grid_columnconfigure(1, weight=0)
+        controls.grid_columnconfigure(2, weight=0)
+
+        self._records_search_var = ctk.StringVar(value="")
+        search_entry = ctk.CTkEntry(
+            controls,
+            textvariable=self._records_search_var,
+            placeholder_text="Search appliance or room",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+        )
+        search_entry.grid(row=0, column=0, padx=(0, 8), sticky="ew")
+        self._bind_field_focus_border(search_entry)
+        search_entry.bind("<KeyRelease>", lambda _: self._refresh_dashboard_records_table())
+
+        self._records_room_filter_var = ctk.StringVar(value="All")
+        self._records_room_filter_widget = ctk.CTkComboBox(
+            controls,
+            values=["All"],
+            variable=self._records_room_filter_var,
+            command=lambda _: self._refresh_dashboard_records_table(),
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
+            button_color=ACCENT_MUTED,
+            button_hover_color=ACCENT_HOVER,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            width=180,
+        )
+        self._records_room_filter_widget.grid(row=0, column=1, padx=(0, 8), sticky="ew")
+        self._bind_field_focus_border(self._records_room_filter_widget)
+
+        self._records_sort_var = ctk.StringVar(value=RECORD_SORT_OPTIONS[0])
+        sort_widget = ctk.CTkComboBox(
+            controls,
+            values=list(RECORD_SORT_OPTIONS),
+            variable=self._records_sort_var,
+            command=lambda _: self._refresh_dashboard_records_table(),
+            state="readonly",
+            fg_color=FIELD_BG,
+            border_color=BORDER_DEFAULT,
+            button_color=ACCENT_MUTED,
+            button_hover_color=ACCENT_HOVER,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            width=190,
+        )
+        sort_widget.grid(row=0, column=2, sticky="ew")
+        self._bind_field_focus_border(sort_widget)
+
+        header = ctk.CTkFrame(table_card, fg_color=BG_ELEVATED, corner_radius=8)
+        header.grid(row=2, column=0, padx=14, pady=(0, 4), sticky="ew")
+        column_specs = [
+            ("Appliance", 2),
+            ("Room", 2),
+            ("Usage", 2),
+            ("Wattage", 1),
+            ("Hours/Day", 1),
+            ("Monthly Cost", 1),
+        ]
+        for idx, (label_text, weight) in enumerate(column_specs):
+            header.grid_columnconfigure(idx, weight=weight)
+            ctk.CTkLabel(
+                header,
+                text=label_text,
+                font=FONT_CAPTION,
+                text_color=TEXT_SECONDARY,
+            ).grid(row=0, column=idx, padx=8, pady=8, sticky="w")
+
+        self._records_table_container = ctk.CTkScrollableFrame(table_card, fg_color=BG_SURFACE)
+        self._records_table_container.grid(row=3, column=0, padx=14, pady=(0, 12), sticky="nsew")
 
     def _build_management_page(self, parent: ctk.CTkFrame) -> None:
         self._body_frame = parent
@@ -955,6 +1089,8 @@ class WattzUpVisual(ctk.CTk):
         self._refresh_left_sidebar()
         self._refresh_page_visibility()
         self._refresh_metrics()
+        self._refresh_room_cost_chart()
+        self._refresh_dashboard_records_table()
         self._refresh_dashboard_rankings()
         self._refresh_sidebar_visibility()
         self._refresh_panel()
@@ -1133,6 +1269,266 @@ class WattzUpVisual(ctk.CTk):
             ).pack(anchor="w", padx=6, pady=2)
             if idx < total:
                 self._pack_subtle_divider(self._ranking_container)
+
+    def _refresh_room_cost_chart(self) -> None:
+        if self._visuals_chart_host is None or self._visuals_legend_container is None:
+            return
+
+        self._clear_container(self._visuals_legend_container)
+        ranked_rooms = [(room, cost) for room, cost in self._app.ranked_rooms() if cost > 0]
+        total_cost = self._app.total_cost()
+
+        if total_cost <= 0 or not ranked_rooms:
+            self._render_empty_room_chart()
+            return
+
+        if self._visuals_empty_label is not None:
+            self._visuals_empty_label.destroy()
+            self._visuals_empty_label = None
+
+        self._draw_room_donut_chart(ranked_rooms, total_cost)
+        self._render_room_chart_legend(ranked_rooms, total_cost)
+
+    def _render_empty_room_chart(self) -> None:
+        if self._visuals_chart_host is None:
+            return
+
+        if self._visuals_empty_label is not None:
+            self._visuals_empty_label.destroy()
+            self._visuals_empty_label = None
+
+        if self._donut_axis is not None and self._donut_canvas is not None:
+            self._donut_axis.clear()
+            self._donut_axis.set_facecolor(BG_SURFACE)
+            self._donut_axis.axis("off")
+            self._donut_axis.text(
+                0.5,
+                0.5,
+                "No records yet",
+                ha="center",
+                va="center",
+                fontsize=12,
+                color=TEXT_SECONDARY,
+            )
+            self._donut_canvas.draw_idle()
+        elif self._visuals_fallback_container is not None:
+            self._clear_container(self._visuals_fallback_container)
+            ctk.CTkLabel(
+                self._visuals_fallback_container,
+                text="No records yet. Add appliances to see room cost share.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+                justify="left",
+                wraplength=280,
+            ).pack(anchor="w", padx=6, pady=6)
+        else:
+            self._visuals_empty_label = ctk.CTkLabel(
+                self._visuals_chart_host,
+                text="No records yet. Add appliances to see room cost share.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+                justify="left",
+                wraplength=300,
+            )
+            self._visuals_empty_label.grid(row=0, column=0, padx=12, pady=12, sticky="w")
+
+        if self._visuals_legend_container is not None:
+            ctk.CTkLabel(
+                self._visuals_legend_container,
+                text="Room legend appears once records are available.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+                justify="left",
+                wraplength=220,
+            ).pack(anchor="w", padx=6, pady=6)
+
+    def _draw_room_donut_chart(self, ranked_rooms: list[tuple[str, float]], total_cost: float) -> None:
+        if self._donut_axis is not None and self._donut_canvas is not None:
+            room_names = [room for room, _ in ranked_rooms]
+            values = [cost for _, cost in ranked_rooms]
+            colors = [self._color_for_room(room, idx) for idx, room in enumerate(room_names)]
+
+            self._donut_axis.clear()
+            self._donut_axis.set_facecolor(BG_SURFACE)
+            self._donut_axis.pie(
+                values,
+                labels=None,
+                startangle=90,
+                colors=colors,
+                wedgeprops={"width": 0.42, "edgecolor": BG_SURFACE, "linewidth": 1.6},
+            )
+            self._donut_axis.text(
+                0,
+                0,
+                f"Total\nP{total_cost:,.2f}",
+                ha="center",
+                va="center",
+                color=TEXT_PRIMARY,
+                fontsize=11,
+            )
+            self._donut_axis.set_aspect("equal")
+            self._donut_axis.axis("off")
+            self._donut_canvas.draw_idle()
+            return
+
+        if self._visuals_fallback_container is None:
+            return
+        self._clear_container(self._visuals_fallback_container)
+        ctk.CTkLabel(
+            self._visuals_fallback_container,
+            text=f"Total Monthly Cost: P{total_cost:,.2f}",
+            font=FONT_HEADING,
+            text_color=TEXT_PRIMARY,
+        ).pack(anchor="w", padx=6, pady=(4, 8))
+        for idx, (room, amount) in enumerate(ranked_rooms):
+            share = (amount / total_cost) * 100
+            ctk.CTkLabel(
+                self._visuals_fallback_container,
+                text=f"{idx + 1}. {room}: P{amount:,.2f} ({share:.1f}%)",
+                font=FONT_BODY,
+                text_color=TEXT_PRIMARY,
+            ).pack(anchor="w", padx=6, pady=2)
+
+    def _render_room_chart_legend(self, ranked_rooms: list[tuple[str, float]], total_cost: float) -> None:
+        if self._visuals_legend_container is None:
+            return
+
+        total_entries = len(ranked_rooms)
+        for position, (room, amount) in enumerate(ranked_rooms, start=1):
+            share = (amount / total_cost) * 100
+            item = ctk.CTkFrame(self._visuals_legend_container, fg_color="transparent")
+            item.pack(fill="x", padx=6, pady=2)
+            item.grid_columnconfigure(1, weight=1)
+
+            ctk.CTkFrame(
+                item,
+                fg_color=self._color_for_room(room, position - 1),
+                width=10,
+                height=10,
+                corner_radius=5,
+            ).grid(row=0, column=0, padx=(0, 8), pady=4, sticky="w")
+
+            ctk.CTkLabel(
+                item,
+                text=room,
+                font=FONT_BODY,
+                text_color=TEXT_PRIMARY,
+            ).grid(row=0, column=1, padx=(0, 8), pady=2, sticky="w")
+
+            ctk.CTkLabel(
+                item,
+                text=f"P{amount:,.2f} ({share:.1f}%)",
+                font=FONT_CAPTION,
+                text_color=TEXT_SECONDARY,
+            ).grid(row=0, column=2, pady=2, sticky="e")
+
+            if position < total_entries:
+                self._pack_subtle_divider(self._visuals_legend_container, padx=(0, 0), pady=(2, 2))
+
+    def _color_for_room(self, room_name: str, index: int) -> str:
+        if room_name in self._room_colors:
+            return self._room_colors[room_name]
+        fallbacks = [ACCENT_PRIMARY, ACCENT_HOVER, ACCENT_MUTED, "#2c3d5d", "#3f516a"]
+        return fallbacks[index % len(fallbacks)]
+
+    def _refresh_dashboard_records_table(self) -> None:
+        if self._records_table_container is None:
+            return
+
+        self._refresh_records_room_filter_values()
+        filtered_records = self._get_filtered_sorted_records()
+        self._clear_container(self._records_table_container)
+
+        if not self._app.records:
+            ctk.CTkLabel(
+                self._records_table_container,
+                text="No records yet. Add appliances from the Management page.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+            ).pack(anchor="w", padx=8, pady=8)
+            return
+
+        if not filtered_records:
+            ctk.CTkLabel(
+                self._records_table_container,
+                text="No results for current search/filter.",
+                font=FONT_BODY,
+                text_color=TEXT_SECONDARY,
+            ).pack(anchor="w", padx=8, pady=8)
+            return
+
+        total_rows = len(filtered_records)
+        for position, record in enumerate(filtered_records, start=1):
+            row = ctk.CTkFrame(self._records_table_container, fg_color="transparent")
+            row.pack(fill="x", padx=2, pady=1)
+
+            row_values = (
+                record.appliance,
+                record.room,
+                record.usage_level,
+                f"{record.wattage}W",
+                str(record.hours_per_day),
+                f"P{record.monthly_cost:,.2f}",
+            )
+            weights = (2, 2, 2, 1, 1, 1)
+            for idx, weight in enumerate(weights):
+                row.grid_columnconfigure(idx, weight=weight)
+            for col, value in enumerate(row_values):
+                ctk.CTkLabel(
+                    row,
+                    text=value,
+                    font=FONT_BODY,
+                    text_color=TEXT_PRIMARY,
+                ).grid(row=0, column=col, padx=8, pady=4, sticky="w")
+
+            if position < total_rows:
+                self._pack_subtle_divider(self._records_table_container, padx=(4, 4), pady=(2, 2))
+
+    def _refresh_records_room_filter_values(self) -> None:
+        if self._records_room_filter_widget is None or self._records_room_filter_var is None:
+            return
+
+        room_names = self._records_table_room_names()
+        filter_values = ["All", *room_names]
+        current = self._records_room_filter_var.get()
+        self._records_room_filter_widget.configure(values=filter_values)
+        if current not in filter_values:
+            self._records_room_filter_var.set("All")
+
+    def _records_table_room_names(self) -> list[str]:
+        available = {record.room for record in self._app.records}
+        known_order = [room for room in self._room_colors.keys() if room in available]
+        unknown_rooms = sorted(room for room in available if room not in self._room_colors)
+        return [*known_order, *unknown_rooms]
+
+    def _get_filtered_sorted_records(self) -> list[ApplianceRecord]:
+        query = ""
+        if self._records_search_var is not None:
+            query = self._records_search_var.get().strip().lower()
+        selected_room = self._records_room_filter_var.get() if self._records_room_filter_var is not None else "All"
+
+        records = []
+        for record in self._app.records:
+            if query and query not in record.appliance.lower() and query not in record.room.lower():
+                continue
+            if selected_room != "All" and record.room != selected_room:
+                continue
+            records.append(record)
+
+        selected_sort = self._records_sort_var.get() if self._records_sort_var is not None else RECORD_SORT_OPTIONS[0]
+        if selected_sort == "Appliance (Z-A)":
+            records.sort(key=lambda item: item.appliance.lower(), reverse=True)
+        elif selected_sort == "Room (A-Z)":
+            records.sort(key=lambda item: (item.room.lower(), item.appliance.lower()))
+        elif selected_sort == "Room (Z-A)":
+            records.sort(key=lambda item: (item.room.lower(), item.appliance.lower()), reverse=True)
+        elif selected_sort == "Cost (Low-High)":
+            records.sort(key=lambda item: item.monthly_cost)
+        elif selected_sort == "Cost (High-Low)":
+            records.sort(key=lambda item: item.monthly_cost, reverse=True)
+        else:
+            records.sort(key=lambda item: item.appliance.lower())
+        return records
 
     def _refresh_panel(self) -> None:
         room = self._selected_room
