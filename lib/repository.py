@@ -5,7 +5,7 @@ import os
 import re
 
 from lib.models import ApplianceRecord
-from util.config import DATA_DIRECTORY, USER_RECORD_SUFFIX, USAGE_LEVELS
+from util.config import DATA_DIRECTORY, USER_RECORD_SUFFIX
 
 
 class HouseholdRecordRepository:
@@ -80,7 +80,7 @@ class HouseholdRecordRepository:
             room = str(row["room"]).strip()
             appliance = str(row["appliance"]).strip()
             usage_level = str(row["usage_level"]).strip()
-            if not room or not appliance or usage_level not in USAGE_LEVELS:
+            if not room or not appliance or not usage_level:
                 return None
 
             record = ApplianceRecord(

@@ -91,6 +91,7 @@ class WattzUpVisual(ctk.CTk):
             "Moderate": "◉ Moderate",
             "Eco": "🍃 Eco",
         }
+        self._custom_usage_display = "⏱ Custom (hours/day)"
         self._usage_inverse_display_map = {display: raw for raw, display in self._usage_display_map.items()}
 
         self._user_value_label: ctk.CTkLabel | None = None
@@ -108,10 +109,16 @@ class WattzUpVisual(ctk.CTk):
         self._manage_tab: ctk.CTkFrame | None = None
         self._appliance_tab: ctk.CTkFrame | None = None
         self._room_tab: ctk.CTkFrame | None = None
+        self._body_frame: ctk.CTkFrame | None = None
+        self._left_content_frame: ctk.CTkFrame | None = None
+        self._right_sidebar: ctk.CTkFrame | None = None
+        self._right_sidebar_visible = True
         self._room_name_value_label: ctk.CTkLabel | None = None
         self._appliance_menu_var: ctk.StringVar | None = None
         self._usage_menu_var: ctk.StringVar | None = None
+        self._custom_usage_entry: ctk.CTkEntry | None = None
         self._appliance_menu_widget: ctk.CTkOptionMenu | None = None
+        self._appliance_wattage_value_label: ctk.CTkLabel | None = None
         self._room_records_container: ctk.CTkScrollableFrame | None = None
         self._tab_appliance_container: ctk.CTkScrollableFrame | None = None
         self._tab_room_container: ctk.CTkScrollableFrame | None = None
@@ -123,10 +130,6 @@ class WattzUpVisual(ctk.CTk):
         if not self._startup_session_modal():
             self.destroy()
             return
-
-        if self._selected_room is None:
-            rooms = self._app.catalog.rooms()
-            self._selected_room = rooms[0] if rooms else None
 
         self._refresh_all()
         self._schedule_startup_centering()
@@ -243,12 +246,14 @@ class WattzUpVisual(ctk.CTk):
         body.grid_columnconfigure(0, weight=1)
         body.grid_columnconfigure(1, weight=0)
         body.grid_rowconfigure(0, weight=1)
+        self._body_frame = body
 
         left = ctk.CTkFrame(body, fg_color=BG_BASE, corner_radius=0)
         left.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=(16, 16))
         left.grid_columnconfigure(0, weight=1)
         left.grid_rowconfigure(0, weight=0)
         left.grid_rowconfigure(1, weight=1)
+        self._left_content_frame = left
 
         overview = ctk.CTkFrame(left, fg_color=BG_BASE, corner_radius=0)
         overview.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -274,6 +279,7 @@ class WattzUpVisual(ctk.CTk):
         right.grid_propagate(False)
         right.grid_rowconfigure(2, weight=1)
         right.grid_columnconfigure(0, weight=1)
+        self._right_sidebar = right
 
         self._panel_title_label = ctk.CTkLabel(right, text="Room: -", font=FONT_HEADING, text_color=TEXT_PRIMARY)
         self._panel_title_label.grid(row=0, column=0, padx=20, pady=(16, 8), sticky="w")
@@ -417,6 +423,7 @@ class WattzUpVisual(ctk.CTk):
 
         self._map_label = ctk.CTkLabel(map_card, image=self._map_image, text="")
         self._map_label.grid(row=0, column=0, padx=14, pady=14, sticky="nsew")
+        self._map_label.bind("<Button-1>", self._on_map_background_click)
 
         self._map_back_button = self._make_secondary_button(
             map_card,
@@ -461,10 +468,15 @@ class WattzUpVisual(ctk.CTk):
         self._room_name_value_label.grid(row=2, column=0, padx=12, pady=(0, 8), sticky="w")
 
         self._usage_menu_var = ctk.StringVar(value=self._usage_to_display("Moderate"))
+
+        def on_usage_change(selected: str) -> None:
+            self._set_custom_usage_state(selected == self._custom_usage_display)
+
         usage_menu = ctk.CTkOptionMenu(
             add_card,
             values=self._usage_display_values(),
             variable=self._usage_menu_var,
+            command=on_usage_change,
             fg_color=BG_SURFACE,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
@@ -474,14 +486,27 @@ class WattzUpVisual(ctk.CTk):
         )
         usage_menu.grid(row=2, column=1, padx=12, pady=(0, 8), sticky="ew")
 
+        self._custom_usage_entry = ctk.CTkEntry(
+            add_card,
+            placeholder_text="Custom hours/day (1-24)",
+            fg_color=BG_SURFACE,
+            border_color=BORDER_DEFAULT,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            width=170,
+        )
+        self._custom_usage_entry.grid(row=3, column=1, padx=12, pady=(0, 8), sticky="ew")
+        self._set_custom_usage_state(False)
+
         ctk.CTkLabel(add_card, text="Appliance", font=FONT_CAPTION, text_color=TEXT_SECONDARY).grid(
-            row=3, column=0, padx=12, pady=(0, 2), sticky="w"
+            row=4, column=0, padx=12, pady=(0, 2), sticky="w"
         )
         self._appliance_menu_var = ctk.StringVar(value="")
         self._appliance_menu_widget = ctk.CTkOptionMenu(
             add_card,
             values=[""],
             variable=self._appliance_menu_var,
+            command=lambda _: self._refresh_selected_appliance_wattage(),
             fg_color=BG_SURFACE,
             button_color=ACCENT_MUTED,
             button_hover_color=ACCENT_HOVER,
@@ -489,10 +514,21 @@ class WattzUpVisual(ctk.CTk):
             corner_radius=8,
             width=220,
         )
-        self._appliance_menu_widget.grid(row=4, column=0, columnspan=2, padx=12, pady=(0, 10), sticky="ew")
+        self._appliance_menu_widget.grid(row=5, column=0, columnspan=2, padx=12, pady=(0, 10), sticky="ew")
+
+        ctk.CTkLabel(add_card, text="Wattage", font=FONT_CAPTION, text_color=TEXT_SECONDARY).grid(
+            row=6, column=0, padx=12, pady=(0, 2), sticky="w"
+        )
+        self._appliance_wattage_value_label = ctk.CTkLabel(
+            add_card,
+            text="-",
+            font=FONT_BODY,
+            text_color=TEXT_PRIMARY,
+        )
+        self._appliance_wattage_value_label.grid(row=6, column=1, padx=12, pady=(0, 8), sticky="w")
 
         self._make_primary_button(add_card, "Add Appliance", self._add_entry).grid(
-            row=5, column=0, columnspan=2, padx=12, pady=(0, 12), sticky="ew"
+            row=7, column=0, columnspan=2, padx=12, pady=(0, 12), sticky="ew"
         )
 
         list_card = ctk.CTkFrame(
@@ -678,22 +714,84 @@ class WattzUpVisual(ctk.CTk):
         return f"{room} [{count}]"
 
     def _usage_display_values(self) -> list[str]:
-        return [self._usage_to_display(usage) for usage in USAGE_LEVELS.keys()]
+        values = [self._usage_to_display(usage) for usage in USAGE_LEVELS.keys()]
+        values.append(self._custom_usage_display)
+        return values
 
     def _usage_to_display(self, usage: str) -> str:
+        if usage.startswith("Custom ("):
+            return usage
         return self._usage_display_map.get(usage, usage)
 
     def _usage_to_raw(self, usage_or_display: str) -> str:
         return self._usage_inverse_display_map.get(usage_or_display, usage_or_display)
+
+    @staticmethod
+    def _usage_icon(usage_level: str) -> str:
+        if usage_level.startswith("Custom ("):
+            return "⏱"
+        mapping = {
+            "Heavy": "⚡",
+            "Moderate": "◉",
+            "Eco": "🍃",
+        }
+        return mapping.get(usage_level, "◉")
+
+    def _set_custom_usage_state(self, enabled: bool) -> None:
+        if self._custom_usage_entry is None:
+            return
+        if enabled:
+            self._custom_usage_entry.grid()
+            self._custom_usage_entry.configure(state="normal")
+        else:
+            self._custom_usage_entry.delete(0, "end")
+            self._custom_usage_entry.configure(state="disabled")
+            self._custom_usage_entry.grid_remove()
+
+    def _refresh_selected_appliance_wattage(self) -> None:
+        if self._appliance_wattage_value_label is None or self._appliance_menu_var is None:
+            return
+        room = self._selected_room
+        appliance = self._appliance_menu_var.get().strip()
+        if not room or not appliance:
+            self._appliance_wattage_value_label.configure(text="-")
+            return
+        try:
+            wattage = self._app.catalog.wattage_for(room, appliance)
+        except KeyError:
+            self._appliance_wattage_value_label.configure(text="-")
+            return
+        self._appliance_wattage_value_label.configure(text=f"{wattage}W")
 
     # ---------- Refresh ----------
     def _refresh_all(self) -> None:
         self._refresh_header()
         self._refresh_metrics()
         self._refresh_dashboard_rankings()
+        self._refresh_sidebar_visibility()
         self._refresh_panel()
         self._refresh_map_view()
         self._refresh_map_highlight()
+
+    def _refresh_sidebar_visibility(self) -> None:
+        if self._body_frame is None or self._left_content_frame is None or self._right_sidebar is None:
+            return
+
+        should_show = self._selected_room is not None
+        if should_show == self._right_sidebar_visible:
+            return
+
+        if should_show:
+            self._body_frame.grid_columnconfigure(1, weight=0, minsize=420)
+            self._left_content_frame.grid_configure(padx=(16, 8))
+            self._right_sidebar.grid(row=0, column=1, sticky="nsew", padx=(8, 16), pady=(16, 16))
+        else:
+            self._right_sidebar.grid_remove()
+            self._body_frame.grid_columnconfigure(1, weight=0, minsize=0)
+            self._left_content_frame.grid_configure(padx=(16, 16))
+
+        self._right_sidebar_visible = should_show
+        self.after(0, self._sync_overview_heights)
 
     def _refresh_header(self) -> None:
         if self._user_value_label is not None:
@@ -758,7 +856,7 @@ class WattzUpVisual(ctk.CTk):
         for idx, record in enumerate(ranked_appliances, start=1):
             ctk.CTkLabel(
                 self._ranking_container,
-                text=f"{idx}. {record.appliance} ({record.room}) - P{record.monthly_cost:,.2f}",
+                text=f"{idx}. {record.appliance} ({record.room}, {record.wattage}W) - P{record.monthly_cost:,.2f}",
                 font=FONT_BODY,
                 text_color=TEXT_PRIMARY,
             ).pack(anchor="w", padx=6, pady=2)
@@ -795,6 +893,7 @@ class WattzUpVisual(ctk.CTk):
                 self._appliance_menu_var.set(appliances[0])
         else:
             self._appliance_menu_var.set("")
+        self._refresh_selected_appliance_wattage()
 
     def _refresh_room_records(self) -> None:
         self._clear_container(self._room_records_container)
@@ -835,7 +934,7 @@ class WattzUpVisual(ctk.CTk):
 
             ctk.CTkLabel(
                 row,
-                text=f"{record.appliance} | {self._usage_to_display(record.usage_level)} | P{record.monthly_cost:,.2f}",
+                text=f"{self._usage_icon(record.usage_level)} {record.appliance} - P{record.monthly_cost:,.2f}",
                 font=FONT_BODY,
                 text_color=TEXT_PRIMARY,
             ).grid(row=0, column=0, padx=(2, 8), pady=2, sticky="w")
@@ -883,7 +982,7 @@ class WattzUpVisual(ctk.CTk):
             for idx, record in enumerate(ranked_appliances, start=1):
                 ctk.CTkLabel(
                     self._tab_appliance_container,
-                    text=f"{idx}. {record.appliance} ({record.room}) - P{record.monthly_cost:,.2f}",
+                    text=f"{idx}. {record.appliance} ({record.room}, {record.wattage}W) - P{record.monthly_cost:,.2f}",
                     font=FONT_BODY,
                     text_color=TEXT_PRIMARY,
                 ).pack(anchor="w", padx=6, pady=2)
@@ -921,19 +1020,40 @@ class WattzUpVisual(ctk.CTk):
         self._map_zoomed_room = room_name
         self._refresh_all()
 
+    def _on_map_background_click(self, _: object | None = None) -> None:
+        self._selected_room = None
+        self._map_zoomed_room = None
+        self._refresh_all()
+
     def _add_entry(self) -> None:
         if self._selected_room is None or self._appliance_menu_var is None or self._usage_menu_var is None:
             return
         appliance = self._appliance_menu_var.get().strip()
-        usage = self._usage_to_raw(self._usage_menu_var.get().strip())
+        usage_selection = self._usage_menu_var.get().strip()
+        usage = self._usage_to_raw(usage_selection)
+        custom_hours: float | None = None
+
+        if usage_selection == self._custom_usage_display:
+            if self._custom_usage_entry is None:
+                self._show_info_modal("Invalid Selection", "Custom usage field is unavailable.")
+                return
+            raw_hours = self._custom_usage_entry.get().strip()
+            try:
+                custom_hours = float(raw_hours)
+            except ValueError:
+                self._show_info_modal("Invalid Selection", "Enter whole-number custom usage hours (1-24).")
+                return
+            usage = "Custom"
         if not appliance:
             self._show_info_modal("Invalid Selection", "Please select an appliance.")
             return
         try:
-            self._app.add_appliance_usage(self._selected_room, appliance, usage)
+            self._app.add_appliance_usage(self._selected_room, appliance, usage, custom_hours_per_day=custom_hours)
         except (ValueError, KeyError, RuntimeError) as exc:
             self._show_info_modal("Error", str(exc))
             return
+        if self._custom_usage_entry is not None:
+            self._custom_usage_entry.delete(0, "end")
         self._refresh_all()
 
     def _delete_record(self, index: int) -> None:
@@ -977,8 +1097,7 @@ class WattzUpVisual(ctk.CTk):
         if not self._startup_session_modal():
             self.destroy()
             return
-        rooms = self._app.catalog.rooms()
-        self._selected_room = rooms[0] if rooms else None
+        self._selected_room = None
         self._refresh_all()
 
     # ---------- Modals ----------
@@ -1114,7 +1233,10 @@ class WattzUpVisual(ctk.CTk):
             anchor="w", padx=20, pady=(0, 6)
         )
 
-        usage_var = ctk.StringVar(value=self._usage_to_display(record.usage_level))
+        initial_usage = self._usage_to_display(record.usage_level)
+        if record.usage_level.startswith("Custom ("):
+            initial_usage = self._custom_usage_display
+        usage_var = ctk.StringVar(value=initial_usage)
         usage_menu = ctk.CTkOptionMenu(
             modal,
             values=self._usage_display_values(),
@@ -1128,6 +1250,35 @@ class WattzUpVisual(ctk.CTk):
         )
         usage_menu.pack(padx=20, pady=(0, 14), anchor="w")
 
+        custom_usage_entry = ctk.CTkEntry(
+            modal,
+            placeholder_text="Custom hours/day (1-24)",
+            fg_color=BG_SURFACE,
+            border_color=BORDER_DEFAULT,
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            width=320,
+        )
+        custom_usage_entry.pack(padx=20, pady=(0, 14), anchor="w")
+
+        if record.usage_level.startswith("Custom ("):
+            custom_usage_entry.insert(0, str(record.hours_per_day))
+            custom_usage_entry.configure(state="normal")
+        else:
+            custom_usage_entry.configure(state="disabled")
+            custom_usage_entry.pack_forget()
+
+        def on_usage_change(selected: str) -> None:
+            if selected == self._custom_usage_display:
+                custom_usage_entry.pack(padx=20, pady=(0, 14), anchor="w")
+                custom_usage_entry.configure(state="normal")
+            else:
+                custom_usage_entry.delete(0, "end")
+                custom_usage_entry.configure(state="disabled")
+                custom_usage_entry.pack_forget()
+
+        usage_menu.configure(command=on_usage_change)
+
         actions = ctk.CTkFrame(modal, fg_color="transparent")
         actions.pack(fill="x", padx=20, pady=(0, 16))
         actions.grid_columnconfigure(0, weight=1)
@@ -1136,8 +1287,19 @@ class WattzUpVisual(ctk.CTk):
         self._make_secondary_button(actions, "Cancel", modal.destroy).grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
         def save_edit() -> None:
+            selected_usage = usage_var.get().strip()
+            usage = self._usage_to_raw(selected_usage)
+            custom_hours: float | None = None
+            if selected_usage == self._custom_usage_display:
+                raw_hours = custom_usage_entry.get().strip()
+                try:
+                    custom_hours = float(raw_hours)
+                except ValueError:
+                    self._show_info_modal("Error", "Enter whole-number custom usage hours (1-24).")
+                    return
+                usage = "Custom"
             try:
-                self._app.update_record_usage_at(index, self._usage_to_raw(usage_var.get().strip()))
+                self._app.update_record_usage_at(index, usage, custom_hours_per_day=custom_hours)
             except (ValueError, IndexError) as exc:
                 self._show_info_modal("Error", str(exc))
                 return

@@ -56,9 +56,21 @@ class WattzUpApplicationService:
         self.budget = None
         return safe_username
 
-    def add_appliance_usage(self, room: str, appliance: str, usage_level: str) -> ApplianceRecord:
+    def add_appliance_usage(
+        self,
+        room: str,
+        appliance: str,
+        usage_level: str,
+        custom_hours_per_day: float | None = None,
+    ) -> ApplianceRecord:
         wattage = self._catalog.wattage_for(room, appliance)
-        record = self._computation_service.build_record(room, appliance, wattage, usage_level)
+        record = self._computation_service.build_record(
+            room,
+            appliance,
+            wattage,
+            usage_level,
+            custom_hours_per_day=custom_hours_per_day,
+        )
         self.records.append(record)
         self.save_current_session()
         return record
@@ -72,7 +84,12 @@ class WattzUpApplicationService:
         self.save_current_session()
         return record
 
-    def update_record_usage_at(self, index: int, usage_level: str) -> ApplianceRecord:
+    def update_record_usage_at(
+        self,
+        index: int,
+        usage_level: str,
+        custom_hours_per_day: float | None = None,
+    ) -> ApplianceRecord:
         """Update the usage level for one record and persist session."""
         if index < 0 or index >= len(self.records):
             raise IndexError("Record index out of range.")
@@ -83,6 +100,7 @@ class WattzUpApplicationService:
             appliance=current.appliance,
             wattage=current.wattage,
             usage_level=usage_level,
+            custom_hours_per_day=custom_hours_per_day,
         )
         self.records[index] = updated
         self.save_current_session()

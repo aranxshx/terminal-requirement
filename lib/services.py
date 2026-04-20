@@ -10,11 +10,26 @@ class EnergyComputationService:
     def __init__(self, rate_per_kwh: float = DEFAULT_RATE_PER_KWH) -> None:
         self.rate_per_kwh = rate_per_kwh
 
-    def build_record(self, room: str, appliance: str, wattage: int, usage_level: str) -> ApplianceRecord:
-        if usage_level not in USAGE_LEVELS:
-            raise ValueError(f"Unknown usage level: {usage_level}")
+    def build_record(
+        self,
+        room: str,
+        appliance: str,
+        wattage: int,
+        usage_level: str,
+        custom_hours_per_day: float | None = None,
+    ) -> ApplianceRecord:
+        if custom_hours_per_day is None:
+            if usage_level not in USAGE_LEVELS:
+                raise ValueError(f"Unknown usage level: {usage_level}")
+            hours_per_day = USAGE_LEVELS[usage_level]
+        else:
+            if custom_hours_per_day <= 0 or custom_hours_per_day > 24:
+                raise ValueError("Custom usage hours must be greater than 0 and at most 24.")
+            if not float(custom_hours_per_day).is_integer():
+                raise ValueError("Custom usage hours must be a whole number.")
+            hours_per_day = int(custom_hours_per_day)
+            usage_level = f"Custom ({hours_per_day:g}h/day)"
 
-        hours_per_day = USAGE_LEVELS[usage_level]
         kwh = (wattage * hours_per_day * 30) / 1000
         monthly_cost = kwh * self.rate_per_kwh
 
@@ -23,7 +38,7 @@ class EnergyComputationService:
             appliance=appliance,
             wattage=wattage,
             usage_level=usage_level,
-            hours_per_day=hours_per_day,
+            hours_per_day=int(hours_per_day),
             kwh=round(kwh, 2),
             monthly_cost=round(monthly_cost, 2),
         )
