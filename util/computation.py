@@ -56,6 +56,7 @@ class ComputationFacade:
 _FACADE = ComputationFacade()
 
 
+
 # Backward-compatible function exports.
 def compute_cost(wattage: int, hours_per_day: int, rate: float = 12.0) -> dict:
     del rate
